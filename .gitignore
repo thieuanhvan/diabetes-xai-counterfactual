@@ -18,12 +18,20 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data & outputs (never commit)
+# Data (never commit)
 data/raw/
 data/*.csv
 data/*.parquet
-outputs/
-*.log
+
+# Run artifacts per §11.4 (v37): outputs/ holds log + JSON + CSV per run.
+# Authoritative runs ARE committed for reviewer reproducibility.
+# Scratch runs auto-excluded via _scratch_ marker.
+outputs/*
+!outputs/.gitkeep
+!outputs/run*.log
+!outputs/run*.json
+!outputs/run*_cf_metrics.csv
+outputs/run*_scratch_*
 
 # Models
 *.pkl

@@ -1,10 +1,7 @@
-"""Right-click runnable entry for PyCharm.
+"""Wrapper to launch the diabetes-xai-counterfactual pipeline.
 
-Equivalent to: python -m src.main --config configs/default.yaml
-
-Place at REPO ROOT (cùng cấp configs/, src/, README.md).
-Auto-detects repo root by walking up to find configs/default.yaml,
-so still works if accidentally placed in a subdirectory.
+Per generalrule §11.5: run_*.py wrapper at REPO ROOT.
+Defensive: find_repo_root walks up from __file__ until configs/default.yaml found.
 """
 from __future__ import annotations
 
@@ -13,21 +10,21 @@ from pathlib import Path
 
 
 def find_repo_root(start: Path) -> Path:
-    """Walk up from `start` until a directory containing configs/default.yaml is found."""
+    """Walk up from `start` to find directory containing configs/default.yaml."""
     cur = start.resolve()
-    while True:
+    for _ in range(10):  # safety bound
         if (cur / "configs" / "default.yaml").exists():
             return cur
-        if cur == cur.parent:  # filesystem root reached
-            raise RuntimeError(
-                f"Could not find repo root (no configs/default.yaml) starting from {start}"
-            )
+        if cur.parent == cur:
+            break
         cur = cur.parent
+    raise RuntimeError(
+        f"Cannot find repo root with configs/default.yaml starting from {start}"
+    )
 
 
 ROOT = find_repo_root(Path(__file__).parent)
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT))
 
 from src.main import main
 
