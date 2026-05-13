@@ -1,0 +1,24 @@
+2026-05-13 15:05:09,257 | INFO | === Run started: run4_20260513_1505 (scratch=False) ===
+2026-05-13 15:05:09,257 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\logs\run4_20260513_1505.log
+2026-05-13 15:05:09,257 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\configs\run4_20260513_1505.json
+2026-05-13 15:05:09,258 | INFO | [1/4] Load dataset...
+2026-05-13 15:05:09,601 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-13 15:05:09,601 | INFO | [2/4] Train XGBoost...
+2026-05-13 15:05:13,684 | INFO |       test AUC: 0.8233
+2026-05-13 15:05:13,684 | INFO |       (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)
+2026-05-13 15:05:13,685 | INFO | [3/4] Generate counterfactuals...
+2026-05-13 15:05:13,690 | INFO |       mode: per_query=True, method=random, n_queries=200
+2026-05-13 15:08:44,055 | INFO | [4/4] Evaluate CFs...
+2026-05-13 15:08:56,783 | INFO |       Queries processed: 200/200 (skipped 0)
+2026-05-13 15:08:56,784 | INFO |       Aggregate metrics:
+2026-05-13 15:08:56,786 | INFO |         validity               0.820000
+2026-05-13 15:08:56,786 | INFO |         proximity              1.443250
+2026-05-13 15:08:56,786 | INFO |         sparsity               0.071429
+2026-05-13 15:08:56,786 | INFO |         diversity              14.994700
+2026-05-13 15:08:56,786 | INFO |         plausibility           4.110190
+2026-05-13 15:08:56,786 | INFO |         actionability          0.985000
+2026-05-13 15:08:56,786 | INFO |         wrong_dir_violations   0.000000
+2026-05-13 15:08:56,787 | INFO |         immutable_violations   0.000000
+2026-05-13 15:08:56,787 | INFO |       Per-instance CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run4_20260513_1505_cf_metrics.csv
+2026-05-13 15:08:56,951 | INFO | Config JSON saved: C:\Projects\uit\diabetes-xai-counterfactual\configs\run4_20260513_1505.json
+2026-05-13 15:08:56,951 | INFO | === Run finished: run4_20260513_1505 ===

@@ -1,0 +1,10 @@
+2026-05-12 18:11:51,876 | INFO | === Run started: run1_20260512_1811 ===
+2026-05-12 18:11:51,876 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\logs\run1_20260512_1811.log
+2026-05-12 18:11:51,877 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\configs\run1_20260512_1811.json
+2026-05-12 18:11:51,877 | INFO | [1/4] Load BRFSS 2021...
+2026-05-12 18:11:52,200 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-12 18:11:52,201 | INFO | [2/4] Train XGBoost...
+2026-05-12 18:11:56,430 | INFO |       test AUC: 0.8233
+2026-05-12 18:11:56,430 | INFO |       (P2 run 12 baseline on BRFSS 2021: AUC=0.8228)
+2026-05-12 18:11:56,431 | INFO | [3/4] Generate counterfactuals...
+2026-05-12 18:11:56,437 | INFO |       mode: per_query=True, method=random
