@@ -43,3 +43,4 @@ dice:
 evaluate:
   n_test_instances: 200       # số patient cao-risk cho CF eval. Auto-clamp nếu > test split
   plausibility_neighbors: 50
+  compare_modes: true    # NEW

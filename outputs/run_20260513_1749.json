@@ -1,15 +1,18 @@
 {
-  "run_id": "run1_20260513_1533",
+  "run_id": "run_20260513_1749",
   "is_scratch": false,
   "runtime": {
     "python": "3.12.10",
     "os": "Windows",
     "platform": "Windows-10-10.0.19045-SP0",
     "hardware": {
-      "cpu": "Intel64 Family 6 Model 126 Stepping 5, GenuineIntel",
+      "cpu": {
+        "model": "Intel(R) Core(TM) i7-1068NG7 CPU @ 2.30GHz",
+        "arch": "AMD64"
+      },
       "cpu_count": 8,
       "ram_gb": 31.81,
-      "gpu": "none"
+      "gpu": null
     }
   },
   "libraries": {
@@ -67,13 +70,14 @@
     },
     "evaluate": {
       "n_test_instances": 200,
-      "plausibility_neighbors": 50
+      "plausibility_neighbors": 50,
+      "compare_modes": true
     }
   },
-  "git_commit": "bdc1815",
+  "git_commit": "04065d5",
   "timestamps": {
-    "start": "2026-05-13T15:33:12.489822+07:00",
-    "end": "2026-05-13T15:36:41.950005+07:00"
+    "start": "2026-05-13T17:49:13.053699+07:00",
+    "end": "2026-05-13T17:57:19.476432+07:00"
   },
-  "notes": "per_query=True; method=random; sample_n=None; n_queries=200; validity=0.8200; actionability=0.9850; AUC=0.8233"
+  "notes": "compare_modes=True; method=random; sample_n=None; n_queries=200; validity[g=0.7520|pq=0.8080]; actionability[g=0.6655|pq=0.9880]; AUC=0.8233"
 }
