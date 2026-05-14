@@ -1,0 +1,188 @@
+"""Rank features by reduction in violation rate (global → per-query).
+
+Two ways to invoke:
+1. Auto-called by run_main.py at end of pipeline.
+2. Standalone: `python analysis/topk_violations.py` (right-click → Run trong
+   PyCharm cũng được). Regen ranking cho LATEST run mà không re-pipeline.
+
+Không nhận tham số CLI — luôn dùng run mới nhất trong outputs/.
+Nếu cần target run cụ thể, edit RUN_ID_OVERRIDE bên dưới.
+
+Output:
+1. CSV: outputs/run_*_topk_violations.csv — features ranked by violation
+   reduction (descending). Includes both modes' counts so reviewers can
+   see whether per-query mode suppressed the feature entirely or just
+   redirected its usage.
+2. Markdown table: outputs/run_*_topk_violations.md
+   for easy paste into manuscript §4.4 or supplementary materials.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+
+
+# Hardcode 1 run_id cụ thể nếu cần regen cho run cũ. None = run mới nhất.
+RUN_ID_OVERRIDE: Optional[str] = None
+# Ví dụ: RUN_ID_OVERRIDE = "run_20260513_1749"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §11.5 — file này ở analysis/ (1 level deep) nên repo root = parent.parent
+# ──────────────────────────────────────────────────────────────────────
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+def find_latest_per_feature_csv(outputs_dir: Path) -> Path:
+    """Lexicographic sort on filename = datetime sort (YYYYMMDD_HHMM sortable)."""
+    candidates = sorted(outputs_dir.glob("run_*_per_feature.csv"))
+    if not candidates:
+        raise FileNotFoundError(
+            f"No run_*_per_feature.csv in {outputs_dir}. "
+            "Cần chạy pipeline với compare_modes=true trước."
+        )
+    return candidates[-1]
+
+
+def find_csv_for_run(outputs_dir: Path, run_id: str) -> Path:
+    csv_path = outputs_dir / f"{run_id}_per_feature.csv"
+    if not csv_path.exists():
+        available = sorted(outputs_dir.glob("run_*_per_feature.csv"))
+        msg = f"Not found: {csv_path}"
+        if available:
+            msg += f"\nAvailable runs in {outputs_dir}:\n  "
+            msg += "\n  ".join(p.name for p in available)
+        raise FileNotFoundError(msg)
+    return csv_path
+
+
+def compute_ranking(per_feature_csv: Path) -> pd.DataFrame:
+    """Read per_feature.csv, pivot global/per_query side-by-side, rank by reduction.
+
+    Returns DataFrame with columns:
+        rank, feature, taxonomy_class,
+        global_violation_rate, perquery_violation_rate, violation_reduction,
+        global_n_changes, perquery_n_changes, suppression_pattern
+    Sorted by violation_reduction DESC, ties broken by global_violation_rate DESC.
+
+    suppression_pattern ∈ {
+        'suppressed_entirely'   : per_query n_changes = 0 (feature dropped)
+        'redirected'            : per_query n_changes > 0, violations went to 0
+        'partial_redirect'      : per_query n_changes > 0, violations reduced but > 0
+        'no_global_violations'  : global violation_rate = 0 (feature never violating)
+        'no_changes'            : both modes have n_changes = 0 (e.g. immutables)
+    }
+    """
+    df = pd.read_csv(per_feature_csv)
+    g = df[df['mode'] == 'global'].set_index('feature')
+    p = df[df['mode'] == 'per_query'].set_index('feature')
+
+    features = sorted(set(g.index) & set(p.index))
+    rows = []
+    for f in features:
+        g_viol = g.loc[f, 'violation_rate']
+        p_viol = p.loc[f, 'violation_rate']
+        g_n    = int(g.loc[f, 'n_total_cf_changes'])
+        p_n    = int(p.loc[f, 'n_total_cf_changes'])
+
+        reduction = g_viol - p_viol
+
+        if g_n == 0 and p_n == 0:
+            pattern = 'no_changes'
+        elif g_viol == 0:
+            pattern = 'no_global_violations'
+        elif p_n == 0:
+            pattern = 'suppressed_entirely'
+        elif p_viol == 0:
+            pattern = 'redirected'
+        else:
+            pattern = 'partial_redirect'
+
+        rows.append({
+            'feature':                  f,
+            'taxonomy_class':           g.loc[f, 'taxonomy_class'],
+            'global_violation_rate':    g_viol,
+            'perquery_violation_rate':  p_viol,
+            'violation_reduction':      reduction,
+            'global_n_changes':         g_n,
+            'perquery_n_changes':       p_n,
+            'suppression_pattern':      pattern,
+        })
+
+    out = pd.DataFrame(rows)
+    out = out.sort_values(
+        by=['violation_reduction', 'global_violation_rate'],
+        ascending=[False, False],
+    ).reset_index(drop=True)
+    out.insert(0, 'rank', range(1, len(out) + 1))
+    return out
+
+
+def to_markdown(ranking: pd.DataFrame, top_k: Optional[int] = None) -> str:
+    """Format ranking as Markdown table for manuscript paste."""
+    if top_k is not None:
+        ranking = ranking.head(top_k)
+
+    header = (
+        "| Rank | Feature | Taxonomy class | Global viol. | Per-query viol. | "
+        "Δ reduction | Global n | Per-query n | Pattern |\n"
+        "|---:|:---|:---|---:|---:|---:|---:|---:|:---|"
+    )
+    lines = [header]
+    for _, row in ranking.iterrows():
+        lines.append(
+            f"| {row['rank']} "
+            f"| {row['feature']} "
+            f"| {row['taxonomy_class']} "
+            f"| {row['global_violation_rate']:.3f} "
+            f"| {row['perquery_violation_rate']:.3f} "
+            f"| {row['violation_reduction']:+.3f} "
+            f"| {row['global_n_changes']} "
+            f"| {row['perquery_n_changes']} "
+            f"| {row['suppression_pattern']} |"
+        )
+    return "\n".join(lines)
+
+
+def main() -> None:
+    """Generate ranking from latest run (or RUN_ID_OVERRIDE if set)."""
+    outputs_dir = REPO_ROOT / "outputs"
+
+    if RUN_ID_OVERRIDE is not None:
+        csv_path = find_csv_for_run(outputs_dir, RUN_ID_OVERRIDE)
+    else:
+        csv_path = find_latest_per_feature_csv(outputs_dir)
+
+    print(f"[topk_violations] Repo root: {REPO_ROOT}")
+    print(f"[topk_violations] Input CSV: {csv_path}")
+
+    ranking = compute_ranking(csv_path)
+
+    # Derive output base name
+    base = csv_path.stem.replace('_per_feature', '_topk_violations')
+    csv_out = outputs_dir / f"{base}.csv"
+    md_out  = outputs_dir / f"{base}.md"
+
+    ranking.to_csv(csv_out, index=False)
+    print(f"[topk_violations] CSV saved: {csv_out}")
+
+    md_text = to_markdown(ranking)
+    md_out.write_text(md_text, encoding='utf-8')
+    print(f"[topk_violations] Markdown saved: {md_out}")
+
+    print()
+    print("=" * 70)
+    print("Ranking (all features, sorted by violation_reduction DESC):")
+    print("=" * 70)
+    print(md_text)
+    print()
+    print("[topk_violations] Done.")
+
+
+if __name__ == "__main__":
+    main()
