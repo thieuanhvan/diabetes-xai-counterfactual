@@ -4,11 +4,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from src.evaluate.per_feature import (
+from src.pipelines.evaluate.per_feature import (
     aggregate_per_feature,
     per_feature_breakdown_one_query,
 )
-from src.counterfactual.feature_taxonomy import FEATURE_TAXONOMY, Mutability
+from src.pipelines.counterfactual.feature_taxonomy import FEATURE_TAXONOMY, Mutability
 
 
 def _make_query():

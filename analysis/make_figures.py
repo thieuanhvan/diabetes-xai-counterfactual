@@ -31,26 +31,30 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-from analysis.figures import per_feature_actionability
+from analysis.figures import comparison_metrics, per_feature_actionability
 
 
-def find_latest_per_feature_csv(outputs_dir: Path) -> Path:
-    """Return path to most recent run_*_per_feature.csv (lexicographic sort
-    on filename = datetime sort, since YYYYMMDD_HHMM is sortable)."""
-    candidates = sorted(outputs_dir.glob("run_*_per_feature.csv"))
+def find_latest_csv(outputs_dir: Path, suffix: str) -> Path:
+    """Lexicographic sort on filename = datetime sort (YYYYMMDD_HHMM sortable).
+
+    Args:
+        outputs_dir: outputs/ folder.
+        suffix: e.g. '_per_feature.csv' or '_comparison.csv'.
+    """
+    candidates = sorted(outputs_dir.glob(f"run_*{suffix}"))
     if not candidates:
         raise FileNotFoundError(
-            f"No run_*_per_feature.csv in {outputs_dir}. "
+            f"No run_*{suffix} in {outputs_dir}. "
             "Cần chạy pipeline với compare_modes=true trước (configs/default.yaml)."
         )
     return candidates[-1]
 
 
-def find_csv_for_run(outputs_dir: Path, run_id: str) -> Path:
-    """Look up the per_feature CSV for an explicit run_id."""
-    csv_path = outputs_dir / f"{run_id}_per_feature.csv"
+def find_csv_for_run(outputs_dir: Path, run_id: str, suffix: str) -> Path:
+    """Look up a specific CSV by run_id and suffix."""
+    csv_path = outputs_dir / f"{run_id}{suffix}"
     if not csv_path.exists():
-        available = sorted(outputs_dir.glob("run_*_per_feature.csv"))
+        available = sorted(outputs_dir.glob(f"run_*{suffix}"))
         msg = f"Not found: {csv_path}"
         if available:
             msg += f"\nAvailable runs in {outputs_dir}:\n  "
@@ -59,32 +63,41 @@ def find_csv_for_run(outputs_dir: Path, run_id: str) -> Path:
     return csv_path
 
 
-def main() -> None:
-    """Generate figures from latest run (or RUN_ID_OVERRIDE if set)."""
-    outputs_dir = REPO_ROOT / "outputs"
-
+def _resolve_csv(outputs_dir: Path, suffix: str) -> Path:
+    """Resolve a CSV path honouring RUN_ID_OVERRIDE."""
     if RUN_ID_OVERRIDE is not None:
-        csv_path = find_csv_for_run(outputs_dir, RUN_ID_OVERRIDE)
-    else:
-        csv_path = find_latest_per_feature_csv(outputs_dir)
+        return find_csv_for_run(outputs_dir, RUN_ID_OVERRIDE, suffix)
+    return find_latest_csv(outputs_dir, suffix)
+
+
+def main() -> None:
+    """Generate all figures from latest run (or RUN_ID_OVERRIDE if set)."""
+    outputs_dir = REPO_ROOT / "outputs"
+    per_feature_csv = _resolve_csv(outputs_dir, "_per_feature.csv")
+    comparison_csv  = _resolve_csv(outputs_dir, "_comparison.csv")
 
     print(f"[make_figures] Repo root: {REPO_ROOT}")
-    print(f"[make_figures] Input CSV: {csv_path}")
+    print(f"[make_figures] Per-feature CSV: {per_feature_csv}")
+    print(f"[make_figures] Comparison CSV:  {comparison_csv}")
     print()
 
     # ── Figure: per-feature actionability ──
     print("[make_figures] Per-feature actionability...")
-    result = per_feature_actionability.generate(csv_path)
+    result = per_feature_actionability.generate(per_feature_csv)
     print(f"  PNG: {result['png']}")
     print(f"  PDF: {result['pdf']}")
+    print()
+
+    # ── Figure: comparison metrics (rel_delta + abs side-by-side) ──
+    print("[make_figures] Comparison metrics...")
+    result = comparison_metrics.generate(comparison_csv)
+    print(f"  PNG: {result['png']}")
+    print(f"  PDF: {result['pdf']}")
+    print()
 
     # Future figures: add invocation here.
     # Mỗi figure module export generate(csv_path) -> {'png': Path, 'pdf': Path}
-    # e.g.
-    #   from analysis.figures import comparison_metrics
-    #   comparison_metrics.generate(comparison_csv)
 
-    print()
     print("[make_figures] Done.")
 
 

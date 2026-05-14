@@ -2,8 +2,8 @@
 import pandas as pd
 import pytest
 
-from src.counterfactual.actionability import actionability_score
-from src.counterfactual.feature_taxonomy import (
+from src.pipelines.counterfactual.actionability import actionability_score
+from src.pipelines.counterfactual.feature_taxonomy import (
     FEATURE_TAXONOMY,
     Mutability,
     get_actionable_features,
