@@ -4,10 +4,10 @@ Order optimized cheap-first → expensive-last so partial completion still
 produces useful output. Each ablation grid is best-effort: a failure in one
 does not block subsequent ablations.
 
-Pre-flight: detects whether Part C extensions are applied. If
-src.pipelines.counterfactual.feature_taxonomy.set_conditional_disabled is
-missing → Ablation 4 (class) and Ablation 5 (taxonomy) auto-skip with
-warning.
+Pre-flight: detects whether the taxonomy disable flag is available
+(set_conditional_disabled in feature_taxonomy). If absent (e.g. someone has
+forked main and removed the optional ablation hooks), the taxonomy and
+class-balance ablations are skipped with a warning rather than crashing.
 
 After all grids finish, builds 5 ablation_*_table.csv tables via
 ablation.aggregate (best-effort each).
@@ -47,10 +47,10 @@ from ablation.core import run_grid
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Part C detection — auto-skip ablation 4 + 5 if not applied
+# Pre-flight: optional ablation hooks (taxonomy disable + risk threshold)
 # ──────────────────────────────────────────────────────────────────────
-def _part_c_applied() -> bool:
-    """Return True if Part C extensions are in place."""
+def _taxonomy_flag_available() -> bool:
+    """Return True if the taxonomy disable flag is importable."""
     try:
         from src.pipelines.counterfactual.feature_taxonomy import set_conditional_disabled  # noqa: F401
         return True
@@ -124,21 +124,21 @@ def _grid_method():
 
 # Cheap-first ordering: partial completion still produces useful output.
 ABLATIONS: List[Dict] = [
-    {"name": "taxonomy", "needs_part_c": True,  "grid_fn": _grid_taxonomy, "est_min": 20},
-    {"name": "class",    "needs_part_c": True,  "grid_fn": _grid_class,    "est_min": 30},
-    {"name": "n_cf",     "needs_part_c": False, "grid_fn": _grid_n_cf,     "est_min": 40},
-    {"name": "seed",     "needs_part_c": False, "grid_fn": _grid_seed,     "est_min": 50},
-    {"name": "method",   "needs_part_c": False, "grid_fn": _grid_method,   "est_min": 240},
+    {"name": "taxonomy", "needs_taxonomy_flag": True,  "grid_fn": _grid_taxonomy, "est_min": 20},
+    {"name": "class",    "needs_taxonomy_flag": True,  "grid_fn": _grid_class,    "est_min": 30},
+    {"name": "n_cf",     "needs_taxonomy_flag": False, "grid_fn": _grid_n_cf,     "est_min": 40},
+    {"name": "seed",     "needs_taxonomy_flag": False, "grid_fn": _grid_seed,     "est_min": 50},
+    {"name": "method",   "needs_taxonomy_flag": False, "grid_fn": _grid_method,   "est_min": 240},
 ]
 
 
-def _safe_run_ablation(spec: Dict, part_c_ok: bool) -> Dict:
+def _safe_run_ablation(spec: Dict, taxonomy_ok: bool) -> Dict:
     """Run one ablation grid. Returns status dict with name + outcome + elapsed."""
     name = spec["name"]
-    if spec["needs_part_c"] and not part_c_ok:
-        print(f"\n[run_ablation_all] SKIP {name} — Part C not applied")
-        print(f"[run_ablation_all]   (apply v4_partC zip then re-run this wrapper)")
-        return {"name": name, "status": "skipped_no_partC", "elapsed_min": 0}
+    if spec["needs_taxonomy_flag"] and not taxonomy_ok:
+        print(f"\n[run_ablation_all] SKIP {name} — taxonomy disable flag not available")
+        print(f"[run_ablation_all]   (ensure feature_taxonomy.set_conditional_disabled exists)")
+        return {"name": name, "status": "skipped_no_taxonomy_flag", "elapsed_min": 0}
 
     print()
     print("█" * 70)
@@ -171,25 +171,25 @@ def _safe_aggregate(name: str) -> bool:
 
 if __name__ == "__main__":
     t_start = time.time()
-    part_c_ok = _part_c_applied()
+    taxonomy_ok = _taxonomy_flag_available()
 
     print("█" * 70)
     print("█  run_ablation_all.py — Master Ablation Wrapper")
     print("█" * 70)
-    print(f"  Part C extensions: {'✓ applied' if part_c_ok else '✗ NOT applied — ablation 4+5 will skip'}")
-    print(f"  Estimated total wall-clock: ~{sum(s['est_min'] for s in ABLATIONS if s['needs_part_c'] is False or part_c_ok)} min")
+    print(f"  Taxonomy disable flag: {'✓ available' if taxonomy_ok else '✗ unavailable — ablation 4+5 will skip'}")
+    print(f"  Estimated total wall-clock: ~{sum(s['est_min'] for s in ABLATIONS if s['needs_taxonomy_flag'] is False or taxonomy_ok)} min")
     print(f"  Output: outputs/run_<timestamp>.{{log,json,csv}} per cell + outputs/ablation_<type>_table.csv per ablation")
     print()
     print(f"  Execution order (cheap-first):")
     for i, spec in enumerate(ABLATIONS, start=1):
-        will_skip = spec["needs_part_c"] and not part_c_ok
+        will_skip = spec["needs_taxonomy_flag"] and not taxonomy_ok
         marker = "SKIP" if will_skip else f"~{spec['est_min']} min"
         print(f"    {i}. {spec['name']:<10} ({marker})")
     print()
 
     results = []
     for spec in ABLATIONS:
-        results.append(_safe_run_ablation(spec, part_c_ok))
+        results.append(_safe_run_ablation(spec, taxonomy_ok))
 
     print()
     print("█" * 70)
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     print(f"  {'Ablation':<12} {'Status':<22} {'Wall-clock':>12}")
     print(f"  {'-' * 12} {'-' * 22} {'-' * 12}")
     for r in results:
-        status_str = {"ok": "✓ complete", "failed": "✗ failed", "skipped_no_partC": "○ skipped (no Part C)"}[r["status"]]
+        status_str = {"ok": "✓ complete", "failed": "✗ failed", "skipped_no_taxonomy_flag": "○ skipped (no taxonomy flag)"}[r["status"]]
         elapsed_str = f"{r['elapsed_min']:.1f} min" if r["elapsed_min"] > 0 else "—"
         print(f"  {r['name']:<12} {status_str:<22} {elapsed_str:>12}")
     print()

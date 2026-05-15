@@ -1,12 +1,16 @@
-"""Part C extensions to main.py — unblock ablation 4 + 5.
+"""Pipeline orchestrator for P4 (Counterfactual + Actionability on BRFSS 2021).
 
-Two additions on top of Part A patched main.py:
-1. cfg["evaluate"]["risk_threshold_min"] (default 0.0): filter X_test by
-   predicted probability before high-risk selection. Required by Ablation 4.
-2. cfg["run"]["notes_suffix"] (default ""): append to notes_str for both
-   compare_modes branches. Required by aggregate.py to group ablation 4/5 runs.
+Runs the full experiment end-to-end:
+  data load -> preprocessing -> XGBoost training -> DiCE CF generation in
+  global + per-query modes -> CF metric computation -> per-feature breakdown
+  -> JSON sidecar + CSVs to outputs/ -> figures + topk_violations (via wrappers).
 
-Apply on top of Part A (this file FULLY replaces Part A's main.py).
+Config-driven via configs/default.yaml. Two optional knobs support the
+ablation suite:
+  cfg["evaluate"]["risk_threshold_min"] (default 0.0): predicted-probability
+    cutoff applied before high-risk selection (Ablation 4 risk cohort sweep).
+  cfg["run"]["notes_suffix"] (default ""): appended to notes_str so that
+    ablation.aggregate can group runs by ablation type via the marker.
 """
 from __future__ import annotations
 
@@ -76,7 +80,7 @@ def _run_one_eval(
     )
     cf_examples = runner.generate(query_instances)
 
-    # v4 Part C v2 FIX (15/05/2026): DiCERunner.generate() returns List[Optional[cf_example]]
+    # DiCERunner.generate() returns List[Optional[cf_example]]
     # NOT a CounterfactualExamples wrapper. Iterate the list directly, handle None entries.
     log.info(f"  [{mode_label}] scoring CFs...")
     per_instance_rows = []
@@ -101,7 +105,7 @@ def _run_one_eval(
             per_feature_per_query.append({})
             continue
         cfs_df = cfs.drop(columns=[TARGET_COL]) if TARGET_COL in cfs.columns else cfs
-        # v4 Part C v5 FIX (15/05/2026): round discrete features post-DiCE.
+        # round discrete features post-DiCE.
         # dice_runner.py passes all features as continuous (DiCE-ml 0.11 quirk workaround).
         # Without rounding, binary features (e.g. AnyHealthcare 0.001 vs 0) register as
         # spurious "changes" → inflate per_feature counts. BMI is only true continuous feature.
@@ -116,7 +120,7 @@ def _run_one_eval(
         spar = sparsity(q, cfs_df)
         div = diversity(cfs_df) if len(cfs_df) > 1 else 0.0
         plaus = plausibility(cfs_df, X_train, k=cfg["evaluate"]["plausibility_neighbors"])
-        # v4 Part C v3 FIX (15/05/2026): actionability_score takes single CF (pd.Series),
+        # actionability_score takes single CF (pd.Series),
         # returns Dict[str, float]. Aggregate across CFs in cfs_df via mean (matches
         # convention of validity/proximity/sparsity which return per-query scalars).
         action_dicts = [actionability_score(q, cfs_df.iloc[j]) for j in range(len(cfs_df))]
@@ -132,7 +136,7 @@ def _run_one_eval(
             "wrong_direction_violations": float(wd_v),
             "immutable_violations": float(imm_v),
         })
-        # v4 Part C v2 FIX: per_feature_breakdown_one_query takes 2 args, not 3
+        # per_feature_breakdown_one_query takes 2 args, not 3
         per_feature_per_query.append(
             per_feature_breakdown_one_query(q, cfs_df)
         )
@@ -160,7 +164,7 @@ def main(config_path: str) -> None:
     run_ctx = setup_run(repo_root, is_scratch=is_scratch)
     seed_everything(cfg["random"]["seed"])
 
-    # v4 Part C (15/05/2026): conditional class flag for Ablation 5 taxonomy.
+    # conditional class flag for Ablation 5 taxonomy.
     # Default False → 5-class taxonomy (CONDITIONAL preserved). When True,
     # CONDITIONAL collapses to MONOTONIC_DOWN (DiffWalk treated as monotonic_down).
     conditional_disabled = bool(cfg.get("taxonomy", {}).get("conditional_class_disabled", False))
@@ -193,7 +197,7 @@ def main(config_path: str) -> None:
     # ---- 3. Pick high-risk queries (shared across modes) ----
     log.info(f"[CF Generation] compare_modes={compare_modes}")
 
-    # v4 Part C (15/05/2026): risk_threshold_min support for Ablation 4 (class balance).
+    # risk_threshold_min support for Ablation 4 (class balance).
     # When > 0, restricts query pool to patients with predicted P(diabetes=1) >= threshold
     # BEFORE selecting top-N. Default 0.0 preserves original behavior (all patients eligible,
     # top-N by ranking).
@@ -284,7 +288,7 @@ def main(config_path: str) -> None:
         log.info(f"      Per-query CSV: {out_pq}")
 
         # NEW: per-feature breakdown comparison
-        # v4 Part C v2 FIX: aggregate_per_feature signature is (per_query_results, mode_label).
+        # aggregate_per_feature signature is (per_query_results, mode_label).
         # Call once per mode, concatenate. topk_violations.py expects long-form
         # with 'mode' column to pivot on.
         df_g = aggregate_per_feature(breakdowns_g, mode_label="global")
@@ -298,7 +302,7 @@ def main(config_path: str) -> None:
         agg_g = summary_g.drop(columns=["i", "n_cfs"]).mean()
         agg_pq = summary_pq.drop(columns=["i", "n_cfs"]).mean()
 
-        # v4 Part C v5 FIX (15/05/2026): rename verbose metric names to short form
+        # rename verbose metric names to short form
         # matching make_figures.py + analysis scripts expectations.
         metric_rename = {
             "proximity_L1": "proximity",
@@ -322,7 +326,7 @@ def main(config_path: str) -> None:
         comparison.to_csv(comp_csv, index=False)
         log.info(f"      Comparison CSV: {comp_csv}")
 
-        # v4 Part C v5 FIX: emit Comparison summary log block (matches run 12:19 format)
+        # emit Comparison summary log block (matches run 12:19 format)
         log.info("      Comparison summary:")
         for metric in agg_g.index:
             g_val = float(agg_g[metric])
@@ -338,7 +342,7 @@ def main(config_path: str) -> None:
             f"AUC={result['auc']:.4f}"
         )
 
-    # v4 Part C (15/05/2026): append notes_suffix for ablation grouping
+    # append notes_suffix for ablation grouping
     # aggregate.py parses 'class_threshold=' and 'taxonomy_n_classes=' markers
     notes_suffix = cfg.get("run", {}).get("notes_suffix", "").strip()
     if notes_suffix:
@@ -366,7 +370,7 @@ def main(config_path: str) -> None:
             "xgboost": dict(xgb_cfg.__dict__),
             "dice": dict(cfg["dice"]),
             "evaluate": cfg["evaluate"],
-            # v4 Part C: capture taxonomy config in hyperparameters JSON for reproducibility
+            # capture taxonomy config in hyperparameters JSON for reproducibility
             "taxonomy": cfg.get("taxonomy", {}),
         },
         # v4 update (15/05/2026): record extended classifier metrics for §4.2 main_vi

@@ -121,25 +121,36 @@ the taxonomy and per-query application, not the classifier. Single model
 also reduces compute (one CF generation pass per mode versus three).
 
 Trade-off accepted: results are model-specific. Generalization to LR or RF
-is left to future work (ablation 2 in the parked ablation document).
+is left to future work; method comparison (random / genetic / kdtree) was
+ablated in §4.5.2 main_vi v8 but cross-classifier generalization to LR / RF
+remains open.
 
 ### ADR-3: CF method = random
 
-Considered alternatives: DiCE method='genetic' (best diversity but slow and
-has a known mixed-dtype issue in dice-ml 0.11), DiCE method='kdtree' (most
-plausible but needs the training set in memory at CF time).
+Considered alternatives: DiCE method='genetic' (high validity + zero
+violations but ~10x compute cost and sparsity inflated by ~2x) and DiCE
+method='kdtree' (retrieval-based, requires training set in memory).
 
-Decision: method='random'.
+random was chosen as default for three reasons: (i) lowest computational cost
+- practical wall-clock ~5 minutes for 200 patients in compare-modes setup;
+(ii) no dependency on training set at CF generation time; (iii) yields
+acceptable validity (0.808) and high actionability (0.988) when paired with
+per-query taxonomy constraints.
 
-Rationale: at scale n=236,378 with 200 CF queries, random is the only method
-with practical wall-clock (3 minutes 40 seconds per mode). The dtype quirk
-in genetic mode was reproducible and the workaround (cast all features
-continuous) introduced its own rounding issues. kdtree memory cost ruled it
-out for the cohort size.
+Method ablation (§4.5.2 main_vi v8) confirmed the trade-off empirically.
+Genetic improves validity to 0.993 and actionability to 1.000 but doubles
+sparsity (0.139 vs 0.072) and runs at ~51 minutes; it remains a high-quality
+alternative when compute budget is not constrained. kdtree failed
+structurally - 0/200 counterfactuals were found in per-query mode because
+nearest training neighbours of high-risk queries violate the taxonomy
+permitted_range on >=8/21 features simultaneously. A dtype incompatibility
+between DiCE 0.12 and pandas 3.x (float32 downcast in
+PublicData._set_feature_dtypes vs float64 scalar assignment in
+posthoc_sparsity) compounded the issue; the 3-line workaround in
+dice_runner.py unblocks the run but does not address the structural failure.
 
 Trade-off accepted: random does not guarantee monotone convergence to a
-diverse Pareto front. Multi-method sensitivity is part of the parked
-ablation (ablation 2).
+diverse Pareto front. Genetic is documented as the production alternative.
 
 ### ADR-4: taxonomy = 5 classes (not binary)
 
@@ -198,8 +209,9 @@ factor: full-test CF generation at 1.1 seconds per query is roughly 14 hours;
 the cohort selection brings total wall-clock to under 8 minutes.
 
 Trade-off accepted: results may not generalize to the full risk distribution.
-Class-balance ablation (ablation 4 in the parked document) addresses this
-later.
+Class-balance ablation (§4.5.4 main_vi v8) tested thr in {0.0, 0.5, 0.7} and
+confirmed taxonomy operates independently of cohort risk profile;
+wrong_direction_violations remained 0 across all three thresholds.
 
 ### ADR-7: repo layout = src/pipelines + src/utils + analysis
 

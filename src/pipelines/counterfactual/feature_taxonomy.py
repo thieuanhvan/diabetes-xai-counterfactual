@@ -14,11 +14,10 @@ Mutability "intervention-direction" lens (v1, 12/05/2026):
 
 Total: 21 features = 4 + 7 + 8 + 1 + 1.
 
-v4 Part C extension (15/05/2026): added module-level flag
-_CONDITIONAL_CLASS_DISABLED. When True, the CONDITIONAL class is collapsed to
-MONOTONIC_DOWN — DiffWalk treated as monotonic_down for both
-get_features_to_vary_for_query and get_permitted_range_for_query. Used by
-Ablation 5 (5-class vs 4-class taxonomy) per ablation_vi v2 §7.
+Module-level flag _CONDITIONAL_CLASS_DISABLED supports the taxonomy-granularity
+ablation (5-class vs 4-class). When True, the CONDITIONAL class is collapsed to
+MONOTONIC_DOWN — DiffWalk is treated as monotonic_down for both
+get_features_to_vary_for_query and get_permitted_range_for_query.
 
 Setter: set_conditional_disabled(True/False). main.py calls this once at
 startup based on cfg["taxonomy"]["conditional_class_disabled"]. Flag persists
@@ -84,7 +83,7 @@ FEATURE_TAXONOMY: Dict[str, FeatureSpec] = {
 
 
 # ──────────────────────────────────────────────────────────────────────
-# v4 Part C: conditional class disable flag for Ablation 5
+# Conditional class disable flag — supports taxonomy-granularity ablation
 # ──────────────────────────────────────────────────────────────────────
 _CONDITIONAL_CLASS_DISABLED = False
 

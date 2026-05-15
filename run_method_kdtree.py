@@ -1,6 +1,6 @@
 """Rerun ONLY the kdtree cell of the method ablation, then rebuild the method
 table. Use after applying the float64 upcast workaround in
-src/pipelines/counterfactual/dice_runner.py (DiCE 0.12 + pandas 2.x kdtree
+src/pipelines/counterfactual/dice_runner.py (DiCE 0.12 + pandas 3.x kdtree
 dtype bug).
 
 The random and genetic cells of the method ablation completed successfully in
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     print("█  run_method_kdtree.py — Rerun kdtree cell only")
     print("█" * 70)
     print("  Reason: dice_runner.py float64 upcast workaround applied for")
-    print("          DiCE 0.12 + pandas 2.x kdtree dtype bug.")
+    print("          DiCE 0.12 + pandas 3.x kdtree dtype bug.")
     print("  Random + genetic cells already complete (re-used from prior run).")
     print()
 
