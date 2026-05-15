@@ -13,6 +13,16 @@ Mutability "intervention-direction" lens (v1, 12/05/2026):
 - CONDITIONAL: caused by co-morbidity, not directly actionable
 
 Total: 21 features = 4 + 7 + 8 + 1 + 1.
+
+v4 Part C extension (15/05/2026): added module-level flag
+_CONDITIONAL_CLASS_DISABLED. When True, the CONDITIONAL class is collapsed to
+MONOTONIC_DOWN — DiffWalk treated as monotonic_down for both
+get_features_to_vary_for_query and get_permitted_range_for_query. Used by
+Ablation 5 (5-class vs 4-class taxonomy) per ablation_vi v2 §7.
+
+Setter: set_conditional_disabled(True/False). main.py calls this once at
+startup based on cfg["taxonomy"]["conditional_class_disabled"]. Flag persists
+for the duration of the run.
 """
 from __future__ import annotations
 
@@ -73,20 +83,66 @@ FEATURE_TAXONOMY: Dict[str, FeatureSpec] = {
 }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v4 Part C: conditional class disable flag for Ablation 5
+# ──────────────────────────────────────────────────────────────────────
+_CONDITIONAL_CLASS_DISABLED = False
+
+
+def set_conditional_disabled(flag: bool) -> None:
+    """Set whether CONDITIONAL class is collapsed to MONOTONIC_DOWN.
+
+    When True (Ablation 5 baseline = 4-class taxonomy), DiffWalk is treated
+    as MONOTONIC_DOWN — included in features_to_vary if patient.DiffWalk > 0,
+    permitted_range restricted to [0, current].
+
+    When False (default = 5-class taxonomy), DiffWalk remains CONDITIONAL —
+    always excluded from features_to_vary regardless of patient context.
+
+    Effect persists until set_conditional_disabled(False) or process exit.
+    """
+    global _CONDITIONAL_CLASS_DISABLED
+    _CONDITIONAL_CLASS_DISABLED = bool(flag)
+
+
+def is_conditional_disabled() -> bool:
+    """Return current state of the conditional-class disable flag."""
+    return _CONDITIONAL_CLASS_DISABLED
+
+
+def _effective_mutability(spec: FeatureSpec) -> Mutability:
+    """Return spec.mutability, with CONDITIONAL collapsed to MONOTONIC_DOWN
+    when the global disable flag is set. Used by query helpers below.
+    """
+    if spec.mutability == Mutability.CONDITIONAL and _CONDITIONAL_CLASS_DISABLED:
+        return Mutability.MONOTONIC_DOWN
+    return spec.mutability
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Public accessors (unchanged signatures)
+# ──────────────────────────────────────────────────────────────────────
 def get_actionable_features() -> List[str]:
-    """GLOBAL list: everything except IMMUTABLE + CONDITIONAL. Used in per_query=False mode."""
-    return [
-        name for name, spec in FEATURE_TAXONOMY.items()
-        if spec.mutability not in (Mutability.IMMUTABLE, Mutability.CONDITIONAL)
-    ]
+    """All features except IMMUTABLE (and CONDITIONAL when flag is OFF)."""
+    out = []
+    for name, spec in FEATURE_TAXONOMY.items():
+        eff = _effective_mutability(spec)
+        if eff == Mutability.IMMUTABLE:
+            continue
+        if eff == Mutability.CONDITIONAL:
+            continue
+        out.append(name)
+    return out
 
 
 def get_immutable_features() -> List[str]:
-    return [name for name, spec in FEATURE_TAXONOMY.items() if spec.mutability == Mutability.IMMUTABLE]
+    return [name for name, spec in FEATURE_TAXONOMY.items()
+            if _effective_mutability(spec) == Mutability.IMMUTABLE]
 
 
 def get_features_by_mutability(mutability: Mutability) -> List[str]:
-    return [name for name, spec in FEATURE_TAXONOMY.items() if spec.mutability == mutability]
+    return [name for name, spec in FEATURE_TAXONOMY.items()
+            if _effective_mutability(spec) == mutability]
 
 
 def get_feature_ranges() -> Dict[str, Tuple[float, float]]:
@@ -94,7 +150,8 @@ def get_feature_ranges() -> Dict[str, Tuple[float, float]]:
 
 
 def get_continuous_features() -> List[str]:
-    return [name for name, spec in FEATURE_TAXONOMY.items() if (spec.value_range[1] - spec.value_range[0]) > 2]
+    """Only BMI is treated as continuous; rest are discrete."""
+    return ["BMI"]
 
 
 def get_discrete_features() -> List[str]:
@@ -111,19 +168,22 @@ def get_features_to_vary_for_query(query: pd.Series) -> List[str]:
     - Education (MONOTONIC_UP): excluded if query.Education == 6
     - GenHlth (MONOTONIC_DOWN): excluded if query.GenHlth == 1
     - BMI (BIDIRECTIONAL): always included
-    - IMMUTABLE / CONDITIONAL: always excluded
+    - IMMUTABLE / CONDITIONAL (5-class): always excluded
+    - CONDITIONAL → MONOTONIC_DOWN (4-class via flag): treated like other
+      monotonic_down features (DiffWalk eligible if patient.DiffWalk > 0)
     """
     features = []
     for name, spec in FEATURE_TAXONOMY.items():
         if name not in query.index:
             continue
-        if spec.mutability in (Mutability.IMMUTABLE, Mutability.CONDITIONAL):
+        eff = _effective_mutability(spec)
+        if eff in (Mutability.IMMUTABLE, Mutability.CONDITIONAL):
             continue
         current = float(query[name])
         lo, hi = spec.value_range
-        if spec.mutability == Mutability.MONOTONIC_DOWN and current <= lo:
+        if eff == Mutability.MONOTONIC_DOWN and current <= lo:
             continue
-        if spec.mutability == Mutability.MONOTONIC_UP and current >= hi:
+        if eff == Mutability.MONOTONIC_UP and current >= hi:
             continue
         features.append(name)
     return features
@@ -140,6 +200,9 @@ def get_permitted_range_for_query(query: pd.Series) -> Dict[str, List[float]]:
     For other features (immutable, conditional, or at-extreme): full feature range.
     DiCE won't perturb them since they're not in features_to_vary, but the range
     key must exist to satisfy DiCE's API expectations.
+
+    When _CONDITIONAL_CLASS_DISABLED (flag set), DiffWalk is treated as
+    MONOTONIC_DOWN — gets [0, current] range if patient.DiffWalk > 0.
     """
     ftv = set(get_features_to_vary_for_query(query))
     permitted: Dict[str, List[float]] = {}
@@ -147,11 +210,12 @@ def get_permitted_range_for_query(query: pd.Series) -> Dict[str, List[float]]:
         if name not in query.index:
             continue
         lo, hi = float(spec.value_range[0]), float(spec.value_range[1])
+        eff = _effective_mutability(spec)
         if name in ftv:
             current = float(query[name])
-            if spec.mutability == Mutability.MONOTONIC_DOWN:
+            if eff == Mutability.MONOTONIC_DOWN:
                 permitted[name] = [lo, current]
-            elif spec.mutability == Mutability.MONOTONIC_UP:
+            elif eff == Mutability.MONOTONIC_UP:
                 permitted[name] = [current, hi]
             else:
                 permitted[name] = [lo, hi]

@@ -1,0 +1,13 @@
+2026-05-15 12:32:25,707 | INFO | === Run started: run_20260515_1232 (scratch=False) ===
+2026-05-15 12:32:25,707 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1232.log
+2026-05-15 12:32:25,708 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1232.json
+2026-05-15 12:32:25,708 | INFO |       [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)
+2026-05-15 12:32:25,708 | INFO | [1/4] Load dataset...
+2026-05-15 12:32:26,120 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-15 12:32:26,120 | INFO | [2/4] Train XGBoost...
+2026-05-15 12:32:31,896 | INFO |       test AUC: 0.8233
+2026-05-15 12:32:31,897 | INFO |       (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)
+2026-05-15 12:32:31,897 | INFO | [3/4] CF generation (compare_modes=True)...
+2026-05-15 12:32:31,902 | INFO |       n_queries (high-risk): 200
+2026-05-15 12:32:31,902 | INFO | [4a/4] Mode 1: GLOBAL (features_to_vary='all', no per-query constraints)
+2026-05-15 12:32:31,902 | INFO |   [global] generating CFs (per_query=False)...

@@ -11,6 +11,14 @@ DiCE-ml 0.11 quirks worked around:
     1. proximity/diversity weights only for method="genetic".
     2. Categorical stringify TypeError: pass all features as continuous,
        round integer features post-hoc in main.
+    3. method="kdtree" + pandas >= 2.x dtype mismatch: PublicData internally
+       casts continuous features to float32; posthoc_sparsity then writes
+       Python float64 scalars into those columns via .at[], which pandas
+       rejects when the value is not exactly representable in float32
+       (e.g. BMI=33.1). Workaround: upcast data_df continuous columns back
+       to float64 after Data() construction. Affects only kdtree path
+       (random/genetic build final_cfs from query_instance.values which is
+       already float64).
 """
 from __future__ import annotations
 
@@ -68,6 +76,19 @@ class DiCERunner:
             continuous_features=self.feature_cols,
             outcome_name=target_col,
         )
+
+        # Workaround for DiCE 0.12 + pandas 2.x kdtree dtype bug (see module
+        # docstring quirk #3). PublicData._set_feature_dtypes downcasts all
+        # continuous columns to np.float32; posthoc_sparsity then assigns
+        # float64 scalars into them via .at[], which pandas 2.x rejects when
+        # the value is not exactly representable in float32 (e.g. BMI=33.1
+        # → '33.1' for dtype 'float32' TypeError). Upcasting data_df
+        # continuous columns to float64 here avoids the dtype mismatch
+        # entirely for the kdtree code path while leaving random/genetic
+        # behaviour unchanged.
+        for col in self.dice_data.continuous_feature_names:
+            self.dice_data.data_df[col] = self.dice_data.data_df[col].astype("float64")
+
         self.dice_model = Model(model=model, backend="sklearn", model_type="classifier")
         self.dice = Dice(self.dice_data, self.dice_model, method=self.config.method)
 

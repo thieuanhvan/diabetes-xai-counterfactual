@@ -1,80 +1,33 @@
-# diabetes-xai-counterfactual
+# Part C v6 — Tiny make_figures Column Fix (15/05/2026)
 
-Counterfactual explanations and actionability evaluation for type-2 diabetes
-risk prediction on BRFSS 2021.
+**1-line change** vs v5: rename comparison.csv column `delta_rel_pct` → `rel_delta_pct`
+to match `analysis/figures/comparison_metrics.py:120` expectation.
 
-## Setup
-
-Requires Python 3.12+.
-
-```bash
-pip install -r requirements.txt
+```diff
+-"delta_rel_pct": 100.0 * (agg_pq.values - agg_g.values) / agg_g.values,
++"rel_delta_pct": 100.0 * (agg_pq.values - agg_g.values) / agg_g.values,
 ```
 
-## Configure
+## Apply when
 
-Edit `configs/default.yaml` and set `paths.data_csv` to your BRFSS 2021 CSV.
+This fix is **OPTIONAL for ablation runs** — `run_ablation_all.py` does NOT call
+make_figures (only `run_main.py` does). So:
 
-## Run
+- **Launch ablation_all with v5 NOW** (already applied) — fine
+- Apply v6 **anytime later** to fix make_figures step in standalone `run_main.py` runs
+- Or apply v6 NOW (10 seconds) then launch ablation — also fine
 
-```bash
-python run_main.py
-```
+Either path produces identical ablation results.
 
-This trains XGBoost, generates counterfactuals in two modes (global baseline +
-per-query taxonomy), writes metrics to `outputs/`, then chains the analysis
-scripts (`analysis/make_figures.py`, `analysis/topk_violations.py`) which add
-figures and a ranked violation table.
+## Confirmed v5 → v6 results identical for ablation
 
-To run analysis on an existing run without re-training, call the analysis
-scripts directly:
+The only thing that changes is the column name written to `comparison.csv`. Data values
+identical. CSV reader scripts (aggregate.py, topk_violations.py) read different columns
+and are unaffected.
 
-```bash
-python analysis/make_figures.py
-python analysis/topk_violations.py
-```
+## After v6, run_main produces clean figures
 
-## Layout
-
-```
-run_main.py             pipeline wrapper at repo root
-configs/                YAML configs (paths, hyperparameters, DiCE settings)
-data/                   place BRFSS 2021 CSV here (gitignored)
-src/
-  pipelines/
-    data/               BRFSS loading
-    preprocessing/      train/test split, scaling
-    models/             XGBoost training
-    counterfactual/     DiCE wrapper + feature taxonomy + actionability score
-    evaluate/           CF metrics: validity, proximity, sparsity, diversity, plausibility
-    main.py             pipeline entry called by run_main.py
-  utils/                shared utilities (run_logger, seed) used across pipelines
-analysis/               post-pipeline scripts (figures, top-k violations)
-tests/                  unit tests for taxonomy + per-feature breakdown
-outputs/                run artifacts (gitignored)
-```
-
-## Reproducibility
-
-Each authoritative run emits four artifacts to `outputs/`:
-
-- `run_YYYYMMDD_HHMM.log`: timing milestones and stdout
-- `run_YYYYMMDD_HHMM.json`: runtime, library versions, seeds, dataset shape,
-  hyperparameters, git commit, hardware (cpu/ram/gpu), timestamps
-- `run_YYYYMMDD_HHMM_*_cf_metrics.csv`: CF metrics per query
-- `run_YYYYMMDD_HHMM_comparison.csv`: aggregated metrics, global vs per-query
-
-To verify reproducibility on a different machine: clone, install requirements
-matching `outputs/run_*.json` library versions, set `random_state=42` (default),
-and run. Expect numerical metrics within float-precision tolerance (AUC drift
-under 0.001 from thread scheduling).
-
-## Tests
-
-```bash
-pytest tests/
-```
-
-## License
-
-Private repository. Will be made public after paper acceptance.
+Smoke 16:33 with v5 finished but make_figures failed `KeyError: rel_delta_pct`.
+After v6, all 4 figure outputs generate:
+- `outputs/run_*_fig_per_feature.{png,pdf}`
+- `outputs/run_*_fig_comparison_metrics.{png,pdf}`

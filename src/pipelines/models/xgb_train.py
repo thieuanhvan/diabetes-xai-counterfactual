@@ -2,6 +2,11 @@
 
 Hyperparameters baseline from P2 run 12 (AUC=0.8228 on BRFSS 2021).
 P4 uses single XGBoost (P2 used 3 models LR/RF/XGB).
+
+v4 update (15/05/2026): Added extended_metrics() helper computing precision,
+recall, specificity, F1, balanced accuracy, MCC alongside AUC for §4.2 main_vi v4.
+Backward compatible — train_xgb() return dict gets new 'extended_metrics' key
+that downstream consumers can ignore if not needed.
 """
 from __future__ import annotations
 
@@ -10,7 +15,11 @@ from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import (
+    roc_auc_score, accuracy_score, precision_score, recall_score,
+    f1_score, balanced_accuracy_score, matthews_corrcoef,
+    confusion_matrix,
+)
 from xgboost import XGBClassifier
 
 
@@ -30,6 +39,34 @@ class XGBConfig:
     n_jobs: int = -1
 
 
+def extended_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    y_proba: np.ndarray,
+    threshold: float = 0.5,
+) -> Dict[str, Any]:
+    """Compute 8 classifier metrics + confusion matrix counts at given threshold.
+
+    Used for §4.2 Bảng 4.2.1 of main_vi v4. AUC is threshold-free.
+    Returns a JSON-serializable dict (all floats/ints).
+    """
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    return {
+        "n_test": int(len(y_true)),
+        "prevalence": float(np.mean(y_true)),
+        "TP": int(tp), "FP": int(fp), "TN": int(tn), "FN": int(fn),
+        "AUC_ROC": float(roc_auc_score(y_true, y_proba)),
+        "Accuracy": float(accuracy_score(y_true, y_pred)),
+        "Precision": float(precision_score(y_true, y_pred, zero_division=0)),
+        "Recall_Sensitivity": float(recall_score(y_true, y_pred, zero_division=0)),
+        "Specificity": float(tn / (tn + fp)) if (tn + fp) > 0 else 0.0,
+        "F1": float(f1_score(y_true, y_pred, zero_division=0)),
+        "Balanced_Accuracy": float(balanced_accuracy_score(y_true, y_pred)),
+        "MCC": float(matthews_corrcoef(y_true, y_pred)),
+        "threshold": float(threshold),
+    }
+
+
 def train_xgb(
     X_train: pd.DataFrame,
     y_train: pd.Series,
@@ -41,7 +78,8 @@ def train_xgb(
 
     Returns:
         dict with keys: 'model' (XGBClassifier), 'auc' (float),
-        'predictions' (np.ndarray), 'proba' (np.ndarray).
+        'predictions' (np.ndarray), 'proba' (np.ndarray),
+        'extended_metrics' (dict — NEW v4 §4.2).
     """
     cfg = config or XGBConfig()
     model = XGBClassifier(**cfg.__dict__)
@@ -56,4 +94,5 @@ def train_xgb(
         "auc": float(auc),
         "predictions": preds,
         "proba": proba,
+        "extended_metrics": extended_metrics(y_test.values, preds, proba, threshold=0.5),
     }

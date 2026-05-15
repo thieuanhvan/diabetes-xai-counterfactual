@@ -179,9 +179,15 @@ def finalize_run(
     seeds: Dict[str, Any],
     dataset: Dict[str, Any],
     hyperparameters: Dict[str, Any],
+    classifier_metrics: Optional[Dict[str, Any]] = None,
     notes: str = "",
 ) -> None:
-    """Emit config JSON sidecar per §11.4 + §11.6 schema."""
+    """Emit config JSON sidecar per §11.4 + §11.6 schema.
+
+    v4 update (15/05/2026): added optional classifier_metrics field for §4.2
+    main_vi v4 extended baseline metrics (Precision/Recall/F1/Specificity/MCC).
+    Backward compatible — old callers without classifier_metrics still work.
+    """
     config = {
         "run_id": run_ctx["run_id"],
         "is_scratch": run_ctx["is_scratch"],
@@ -195,6 +201,7 @@ def finalize_run(
         "seeds": seeds,
         "dataset": dataset,
         "hyperparameters": hyperparameters,
+        "classifier_metrics": classifier_metrics,  # v4: §4.2 main_vi extended metrics
         "git_commit": _git_commit_short(run_ctx["repo_root"]),
         "timestamps": {
             "start": run_ctx["timestamp_start"].isoformat(),

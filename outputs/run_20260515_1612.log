@@ -1,0 +1,25 @@
+2026-05-15 16:12:52,364 | INFO | === Run started: run_20260515_1612 (scratch=False) ===
+2026-05-15 16:12:52,364 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612.log
+2026-05-15 16:12:52,364 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612.json
+2026-05-15 16:12:52,364 | INFO |       [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)
+2026-05-15 16:12:52,365 | INFO | [Load Dataset]
+2026-05-15 16:12:52,695 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-15 16:12:52,697 | INFO | [Train XGBoost]
+2026-05-15 16:12:56,514 | INFO |       test AUC: 0.8233
+2026-05-15 16:12:56,514 | INFO |       (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)
+2026-05-15 16:12:56,514 | INFO | [CF Generation] compare_modes=True
+2026-05-15 16:12:56,520 | INFO |       n_queries (high-risk): 200
+2026-05-15 16:12:56,520 | INFO | [Global Mode] features_to_vary='all', no per-query constraints
+2026-05-15 16:12:56,521 | INFO |   [global] generating CFs (per_query=False)...
+2026-05-15 16:16:45,277 | INFO |   [global] scoring CFs...
+2026-05-15 16:16:58,394 | INFO |   [global] processed 200/200 (skipped 0)
+2026-05-15 16:16:58,416 | INFO |       Global CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612_global_cf_metrics.csv
+2026-05-15 16:16:58,417 | INFO | [Per-Query Mode] taxonomy-constrained
+2026-05-15 16:16:58,417 | INFO |   [per_query] generating CFs (per_query=True)...
+2026-05-15 16:20:49,083 | INFO |   [per_query] scoring CFs...
+2026-05-15 16:21:01,433 | INFO |   [per_query] processed 200/200 (skipped 0)
+2026-05-15 16:21:01,467 | INFO |       Per-query CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612_perquery_cf_metrics.csv
+2026-05-15 16:21:01,486 | INFO |       Per-feature CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612_per_feature.csv
+2026-05-15 16:21:01,492 | INFO |       Comparison CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612_comparison.csv
+2026-05-15 16:21:01,843 | INFO | Config JSON saved: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1612.json
+2026-05-15 16:21:01,843 | INFO | === Run finished: run_20260515_1612 ===

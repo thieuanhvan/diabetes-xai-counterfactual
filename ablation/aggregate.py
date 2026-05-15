@@ -1,0 +1,268 @@
+"""Post-ablation aggregation — read run JSONs, build comparison CSVs.
+
+After each ablation finishes (e.g. multi-seed = 5 runs), call the matching
+build_table_*() function here to compress the 5 outputs/run_*.json files into
+a single comparison CSV ready for Bảng 4.5.x in main_vi v5.
+
+Discovery pattern:
+- Each run produces outputs/run_<YYYYMMDD_HHMM>.json with config in 'hyperparameters'
+- aggregate functions filter runs by matching config fields (e.g. seed value)
+- Output CSVs go to outputs/ablation_<name>_table.csv
+
+Per Generalrule v37 §11.4 — output paths back into outputs/ so they live
+alongside the data they summarize.
+
+Usage examples (run from repo root):
+
+    python -m ablation.aggregate seed       # build Bảng 4.5.1
+    python -m ablation.aggregate method     # build Bảng 4.5.2
+    python -m ablation.aggregate n_cf       # build Bảng 4.5.3
+    python -m ablation.aggregate class      # build Bảng 4.5.4
+    python -m ablation.aggregate taxonomy   # build Bảng 4.5.5
+
+Or import + call programmatically from a wrapper.
+
+NOTE: aggregator reads CF metric CSVs (run_*_cf_metrics.csv) for per-instance
+metrics + JSON sidecars for run config. JSON-only would miss aggregate metric
+values which live in the per-instance CSV not the config dict.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+OUTPUTS_DIR = REPO_ROOT / "outputs"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Discovery + loading
+# ──────────────────────────────────────────────────────────────────────
+def list_recent_runs(limit: int = 100) -> List[Path]:
+    """Return list of run JSONs sorted oldest → newest by filename timestamp."""
+    runs = sorted(OUTPUTS_DIR.glob("run_*.json"))
+    # Exclude scratch runs
+    runs = [r for r in runs if "_scratch_" not in r.stem]
+    return runs[-limit:]
+
+
+def load_run(json_path: Path) -> Dict[str, Any]:
+    """Load JSON sidecar."""
+    with open(json_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def find_matching_cf_csv(json_path: Path, mode: str = "perquery") -> Optional[Path]:
+    """Given outputs/run_X.json, find matching outputs/run_X_<mode>_cf_metrics.csv.
+
+    Returns None if not present (single-mode runs may not have <mode> prefix).
+    """
+    run_id = json_path.stem  # "run_20260516_1130"
+    # compare_modes=true uses prefix: run_<id>_perquery_cf_metrics.csv
+    candidate = OUTPUTS_DIR / f"{run_id}_{mode}_cf_metrics.csv"
+    if candidate.exists():
+        return candidate
+    # compare_modes=false uses: run_<id>_cf_metrics.csv
+    fallback = OUTPUTS_DIR / f"{run_id}_cf_metrics.csv"
+    if fallback.exists():
+        return fallback
+    return None
+
+
+def aggregate_metrics(cf_csv: Path) -> Dict[str, float]:
+    """Mean of all per-instance metric columns in a cf_metrics CSV."""
+    df = pd.read_csv(cf_csv)
+    drop_cols = [c for c in ("i", "n_cfs") if c in df.columns]
+    return df.drop(columns=drop_cols).mean().to_dict()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Per-ablation table builders
+# ──────────────────────────────────────────────────────────────────────
+def build_table_seed(runs: List[Path]) -> pd.DataFrame:
+    """Bảng 4.5.1 — multi-seed: 1 row per seed, columns = 4-8 metrics + AUC.
+
+    Filters runs to those with config hyperparameters.xgboost.random_state in a
+    typical seed list. Computes mean/std across rows at the end.
+    """
+    rows = []
+    for jp in runs:
+        cfg = load_run(jp)
+        hyp = cfg.get("hyperparameters", {})
+        clf = cfg.get("classifier_metrics") or {}
+        seed = hyp.get("xgboost", {}).get("random_state")
+        if seed is None:
+            continue
+        # Per-query mode preferred; fall back to single-mode if compare_modes=False
+        cf_csv = find_matching_cf_csv(jp, mode="perquery")
+        if cf_csv is None:
+            continue
+        agg = aggregate_metrics(cf_csv)
+        rows.append({
+            "run_id": cfg["run_id"],
+            "seed": seed,
+            "AUC": clf.get("AUC_ROC"),
+            "validity": agg.get("validity"),
+            "actionability": agg.get("actionability"),
+            "wrong_dir_violations": agg.get("wrong_direction_violations"),
+            "immutable_violations": agg.get("immutable_violations"),
+            "sparsity": agg.get("sparsity"),
+            "proximity_L1": agg.get("proximity_L1"),
+            "diversity": agg.get("diversity"),
+        })
+    df = pd.DataFrame(rows).sort_values("seed").reset_index(drop=True)
+    if len(df) >= 2:
+        numeric = df.select_dtypes(include="number").columns.drop("seed", errors="ignore")
+        summary = pd.DataFrame({
+            "run_id": ["MEAN", "STD"],
+            "seed": ["—", "—"],
+            **{c: [df[c].mean(), df[c].std()] for c in numeric},
+        })
+        df = pd.concat([df, summary], ignore_index=True)
+    return df
+
+
+def build_table_method(runs: List[Path]) -> pd.DataFrame:
+    """Bảng 4.5.2 — method comparison: 1 row per method (random/genetic/kdtree)."""
+    rows = []
+    for jp in runs:
+        cfg = load_run(jp)
+        method = cfg.get("hyperparameters", {}).get("dice", {}).get("method")
+        if method not in ("random", "genetic", "kdtree"):
+            continue
+        clf = cfg.get("classifier_metrics") or {}
+        cf_csv = find_matching_cf_csv(jp, mode="perquery")
+        if cf_csv is None:
+            continue
+        agg = aggregate_metrics(cf_csv)
+        # Extract wall-clock from log if available (best-effort: skip if missing)
+        rows.append({
+            "run_id": cfg["run_id"],
+            "method": method,
+            "AUC": clf.get("AUC_ROC"),
+            "validity": agg.get("validity"),
+            "actionability": agg.get("actionability"),
+            "wrong_dir_violations": agg.get("wrong_direction_violations"),
+            "sparsity": agg.get("sparsity"),
+            "proximity_L1": agg.get("proximity_L1"),
+            "diversity": agg.get("diversity"),
+            "plausibility_kNN50": agg.get("plausibility_kNN50"),
+        })
+    return pd.DataFrame(rows).sort_values("method").reset_index(drop=True)
+
+
+def build_table_n_cf(runs: List[Path]) -> pd.DataFrame:
+    """Bảng 4.5.3 — n_counterfactuals sweep: 1 row per n_cf value."""
+    rows = []
+    for jp in runs:
+        cfg = load_run(jp)
+        n_cf = cfg.get("hyperparameters", {}).get("dice", {}).get("n_counterfactuals")
+        if n_cf is None:
+            continue
+        cf_csv = find_matching_cf_csv(jp, mode="perquery")
+        if cf_csv is None:
+            continue
+        agg = aggregate_metrics(cf_csv)
+        rows.append({
+            "run_id": cfg["run_id"],
+            "n_counterfactuals": n_cf,
+            "validity": agg.get("validity"),
+            "actionability": agg.get("actionability"),
+            "wrong_dir_violations": agg.get("wrong_direction_violations"),
+            "sparsity": agg.get("sparsity"),
+            "diversity": agg.get("diversity"),
+        })
+    return pd.DataFrame(rows).sort_values("n_counterfactuals").reset_index(drop=True)
+
+
+def build_table_class(runs: List[Path]) -> pd.DataFrame:
+    """Bảng 4.5.4 — class balance: 1 row per risk-threshold cohort."""
+    rows = []
+    for jp in runs:
+        cfg = load_run(jp)
+        notes = cfg.get("notes", "")
+        # Wrappers tag class threshold in notes via 'class_threshold=<p>' marker
+        marker = "class_threshold="
+        if marker not in notes:
+            continue
+        threshold = notes.split(marker)[1].split(";")[0].strip()
+        cf_csv = find_matching_cf_csv(jp, mode="perquery")
+        if cf_csv is None:
+            continue
+        agg = aggregate_metrics(cf_csv)
+        rows.append({
+            "run_id": cfg["run_id"],
+            "risk_threshold": threshold,
+            "validity": agg.get("validity"),
+            "actionability": agg.get("actionability"),
+            "wrong_dir_violations": agg.get("wrong_direction_violations"),
+            "sparsity": agg.get("sparsity"),
+        })
+    return pd.DataFrame(rows).sort_values("risk_threshold").reset_index(drop=True)
+
+
+def build_table_taxonomy(runs: List[Path]) -> pd.DataFrame:
+    """Bảng 4.5.5 — 5-class vs 4-class taxonomy: 2 rows (paired comparison)."""
+    rows = []
+    for jp in runs:
+        cfg = load_run(jp)
+        notes = cfg.get("notes", "")
+        marker = "taxonomy_n_classes="
+        if marker not in notes:
+            continue
+        n_classes = notes.split(marker)[1].split(";")[0].strip()
+        cf_csv = find_matching_cf_csv(jp, mode="perquery")
+        if cf_csv is None:
+            continue
+        agg = aggregate_metrics(cf_csv)
+        rows.append({
+            "run_id": cfg["run_id"],
+            "taxonomy_n_classes": n_classes,
+            "validity": agg.get("validity"),
+            "actionability": agg.get("actionability"),
+            "wrong_dir_violations": agg.get("wrong_direction_violations"),
+            "immutable_violations": agg.get("immutable_violations"),
+        })
+    return pd.DataFrame(rows).sort_values("taxonomy_n_classes").reset_index(drop=True)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# CLI dispatcher
+# ──────────────────────────────────────────────────────────────────────
+BUILDERS = {
+    "seed": build_table_seed,
+    "method": build_table_method,
+    "n_cf": build_table_n_cf,
+    "class": build_table_class,
+    "taxonomy": build_table_taxonomy,
+}
+
+
+def main(ablation_type: str, limit: int = 100) -> Path:
+    """Build the table for one ablation type, save CSV to outputs/."""
+    if ablation_type not in BUILDERS:
+        raise ValueError(f"Unknown ablation type: {ablation_type}. Valid: {list(BUILDERS)}")
+    runs = list_recent_runs(limit=limit)
+    df = BUILDERS[ablation_type](runs)
+    if df.empty:
+        print(f"⚠ No matching runs found for ablation_type={ablation_type}")
+        print("  Check that runs were executed and config fields are tagged correctly.")
+        return None
+    out_csv = OUTPUTS_DIR / f"ablation_{ablation_type}_table.csv"
+    df.to_csv(out_csv, index=False)
+    print(f"✓ Built table: {out_csv}")
+    print(df.to_string(index=False))
+    return out_csv
+
+
+if __name__ == "__main__":
+    arg = sys.argv[1] if len(sys.argv) > 1 else None
+    if arg is None:
+        print(f"Usage: python -m ablation.aggregate {'|'.join(BUILDERS)}")
+        sys.exit(1)
+    main(arg)

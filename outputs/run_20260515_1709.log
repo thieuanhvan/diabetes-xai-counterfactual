@@ -1,0 +1,34 @@
+2026-05-15 17:09:30,575 | INFO | === Run started: run_20260515_1709 (scratch=False) ===
+2026-05-15 17:09:30,575 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709.log
+2026-05-15 17:09:30,576 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709.json
+2026-05-15 17:09:30,576 | INFO |       [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)
+2026-05-15 17:09:30,576 | INFO | [Load Dataset]
+2026-05-15 17:09:31,211 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-15 17:09:31,211 | INFO | [Train XGBoost]
+2026-05-15 17:09:43,717 | INFO |       test AUC: 0.8233
+2026-05-15 17:09:43,717 | INFO |       (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)
+2026-05-15 17:09:43,717 | INFO | [CF Generation] compare_modes=True
+2026-05-15 17:09:43,725 | INFO |       n_queries (high-risk): 200
+2026-05-15 17:09:43,726 | INFO | [Global Mode] features_to_vary='all', no per-query constraints
+2026-05-15 17:09:43,726 | INFO |   [global] generating CFs (per_query=False)...
+2026-05-15 17:15:21,979 | INFO |   [global] scoring CFs...
+2026-05-15 17:15:35,484 | INFO |   [global] processed 200/200 (skipped 0)
+2026-05-15 17:15:35,510 | INFO |       Global CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709_global_cf_metrics.csv
+2026-05-15 17:15:35,510 | INFO | [Per-Query Mode] taxonomy-constrained
+2026-05-15 17:15:35,510 | INFO |   [per_query] generating CFs (per_query=True)...
+2026-05-15 17:20:39,014 | INFO |   [per_query] scoring CFs...
+2026-05-15 17:20:53,753 | INFO |   [per_query] processed 200/200 (skipped 0)
+2026-05-15 17:20:53,787 | INFO |       Per-query CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709_perquery_cf_metrics.csv
+2026-05-15 17:20:53,807 | INFO |       Per-feature CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709_per_feature.csv
+2026-05-15 17:20:53,815 | INFO |       Comparison CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709_comparison.csv
+2026-05-15 17:20:53,816 | INFO |       Comparison summary:
+2026-05-15 17:20:53,816 | INFO |         validity               global=0.7520  per_query=0.8080  Δ=+0.0560
+2026-05-15 17:20:53,816 | INFO |         proximity              global=1.3966  per_query=1.4710  Δ=+0.0744
+2026-05-15 17:20:53,817 | INFO |         sparsity               global=0.0672  per_query=0.0724  Δ=+0.0052
+2026-05-15 17:20:53,817 | INFO |         diversity              global=15.1938  per_query=14.7095  Δ=-0.4843
+2026-05-15 17:20:53,817 | INFO |         plausibility           global=4.2990  per_query=4.0297  Δ=-0.2693
+2026-05-15 17:20:53,817 | INFO |         actionability          global=0.6655  per_query=0.9880  Δ=+0.3225
+2026-05-15 17:20:53,817 | INFO |         wrong_dir_violations   global=0.4350  per_query=0.0000  Δ=-0.4350
+2026-05-15 17:20:53,817 | INFO |         immutable_violations   global=0.0000  per_query=0.0000  Δ=+0.0000
+2026-05-15 17:20:54,060 | INFO | Config JSON saved: C:\Projects\uit\diabetes-xai-counterfactual\outputs\run_20260515_1709.json
+2026-05-15 17:20:54,060 | INFO | === Run finished: run_20260515_1709 ===

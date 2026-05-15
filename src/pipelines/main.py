@@ -1,15 +1,12 @@
-"""Pipeline entry point with §11.4/5/6 logging + compare_modes orchestration.
+"""Part C extensions to main.py — unblock ablation 4 + 5.
 
-Modes:
-- compare_modes=false (default): single CF eval per cfg.dice.per_query setting.
-- compare_modes=true: run BOTH global and per-query back-to-back, save separate
-  per-instance CSVs + comparison.csv + per_feature.csv.
+Two additions on top of Part A patched main.py:
+1. cfg["evaluate"]["risk_threshold_min"] (default 0.0): filter X_test by
+   predicted probability before high-risk selection. Required by Ablation 4.
+2. cfg["run"]["notes_suffix"] (default ""): append to notes_str for both
+   compare_modes branches. Required by aggregate.py to group ablation 4/5 runs.
 
-Outputs (compare mode):
-- outputs/{run_id}_perquery_cf_metrics.csv
-- outputs/{run_id}_global_cf_metrics.csv
-- outputs/{run_id}_comparison.csv          (aggregate metrics + deltas)
-- outputs/{run_id}_per_feature.csv         (per-feature breakdown, both modes)
+Apply on top of Part A (this file FULLY replaces Part A's main.py).
 """
 from __future__ import annotations
 
@@ -27,6 +24,7 @@ from src.pipelines.counterfactual.dice_runner import DiCEConfig, DiCERunner
 from src.pipelines.counterfactual.feature_taxonomy import (
     get_discrete_features,
     get_feature_ranges,
+    set_conditional_disabled,
 )
 from src.pipelines.data.loader import TARGET_COL, load_dataset
 from src.pipelines.evaluate.cf_metrics import (
@@ -78,54 +76,69 @@ def _run_one_eval(
     )
     cf_examples = runner.generate(query_instances)
 
+    # v4 Part C v2 FIX (15/05/2026): DiCERunner.generate() returns List[Optional[cf_example]]
+    # NOT a CounterfactualExamples wrapper. Iterate the list directly, handle None entries.
     log.info(f"  [{mode_label}] scoring CFs...")
-    feature_ranges = get_feature_ranges()
-    feature_cols = list(X_train.columns)
-    discrete_features = get_discrete_features()
-
-    rows = []
-    per_q_breakdowns: List[Dict] = []
+    per_instance_rows = []
+    per_feature_per_query: List[Dict] = []
     n_skipped = 0
 
-    for i, cf_set in enumerate(cf_examples):
-        if cf_set is None or cf_set.final_cfs_df is None or len(cf_set.final_cfs_df) == 0:
+    for i in range(len(query_instances)):
+        q = query_instances.iloc[i]
+        cf_obj = cf_examples[i]
+        cfs = cf_obj.final_cfs_df if cf_obj is not None else None
+        if cfs is None or len(cfs) == 0:
             n_skipped += 1
-            per_q_breakdowns.append(None)
+            per_instance_rows.append({
+                "i": i, "n_cfs": 0,
+                "validity": 0.0, "proximity_L1": np.nan,
+                "sparsity": np.nan, "diversity": np.nan,
+                "plausibility_kNN50": np.nan,
+                "actionability": np.nan,
+                "wrong_direction_violations": np.nan,
+                "immutable_violations": np.nan,
+            })
+            per_feature_per_query.append({})
             continue
-        cfs_df = cf_set.final_cfs_df[feature_cols].reset_index(drop=True)
-        for col in discrete_features:
-            if col in cfs_df.columns:
-                cfs_df[col] = cfs_df[col].round().astype(int)
-
-        query = query_instances.iloc[i]
-        prox = proximity_l1(query, cfs_df, feature_ranges)
-        spars = sparsity(query, cfs_df)
-        div = diversity(cfs_df)
-        plaus = plausibility(cfs_df, X_train, k=cfg["evaluate"]["plausibility_neighbors"])
-
-        act_results = [actionability_score(query, cfs_df.iloc[j]) for j in range(len(cfs_df))]
-        act_mean = float(np.mean([a["score"] for a in act_results]))
-        wrong_dir_mean = float(np.mean([a["wrong_direction_violations"] for a in act_results]))
-        immutable_mean = float(np.mean([a["immutable_violations"] for a in act_results]))
-
-        # NEW: per-feature breakdown
-        per_q_breakdowns.append(per_feature_breakdown_one_query(query, cfs_df))
-
+        cfs_df = cfs.drop(columns=[TARGET_COL]) if TARGET_COL in cfs.columns else cfs
+        # v4 Part C v5 FIX (15/05/2026): round discrete features post-DiCE.
+        # dice_runner.py passes all features as continuous (DiCE-ml 0.11 quirk workaround).
+        # Without rounding, binary features (e.g. AnyHealthcare 0.001 vs 0) register as
+        # spurious "changes" → inflate per_feature counts. BMI is only true continuous feature.
+        cfs_df = cfs_df.copy()
+        for c in get_discrete_features():
+            if c in cfs_df.columns:
+                cfs_df[c] = cfs_df[c].round().astype(int)
         cf_preds = model_result["model"].predict(cfs_df.values)
-        val = validity(cf_preds, dice_cfg.desired_class)
-
-        rows.append({
-            "i": i, "n_cfs": len(cfs_df),
-            "validity": val, "proximity": prox, "sparsity": spars,
-            "diversity": div, "plausibility": plaus,
-            "actionability": act_mean,
-            "wrong_dir_violations": wrong_dir_mean,
-            "immutable_violations": immutable_mean,
+        ranges = get_feature_ranges()
+        v = validity(cf_preds, cfg["dice"]["desired_class"])
+        prox = proximity_l1(q, cfs_df, ranges)
+        spar = sparsity(q, cfs_df)
+        div = diversity(cfs_df) if len(cfs_df) > 1 else 0.0
+        plaus = plausibility(cfs_df, X_train, k=cfg["evaluate"]["plausibility_neighbors"])
+        # v4 Part C v3 FIX (15/05/2026): actionability_score takes single CF (pd.Series),
+        # returns Dict[str, float]. Aggregate across CFs in cfs_df via mean (matches
+        # convention of validity/proximity/sparsity which return per-query scalars).
+        action_dicts = [actionability_score(q, cfs_df.iloc[j]) for j in range(len(cfs_df))]
+        act = float(np.mean([d["score"] for d in action_dicts]))
+        wd_v = float(np.mean([d["wrong_direction_violations"] for d in action_dicts]))
+        imm_v = float(np.mean([d["immutable_violations"] for d in action_dicts]))
+        per_instance_rows.append({
+            "i": i, "n_cfs": int(len(cfs_df)),
+            "validity": float(v), "proximity_L1": float(prox),
+            "sparsity": float(spar), "diversity": float(div),
+            "plausibility_kNN50": float(plaus),
+            "actionability": float(act),
+            "wrong_direction_violations": float(wd_v),
+            "immutable_violations": float(imm_v),
         })
+        # v4 Part C v2 FIX: per_feature_breakdown_one_query takes 2 args, not 3
+        per_feature_per_query.append(
+            per_feature_breakdown_one_query(q, cfs_df)
+        )
 
-    summary = pd.DataFrame(rows)
-    log.info(f"  [{mode_label}] processed {len(rows)}/{len(query_instances)} (skipped {n_skipped})")
-    return summary, per_q_breakdowns
+    log.info(f"  [{mode_label}] processed {len(query_instances)}/{len(query_instances)} (skipped {n_skipped})")
+    return pd.DataFrame(per_instance_rows), per_feature_per_query
 
 
 def main(config_path: str) -> None:
@@ -147,15 +160,25 @@ def main(config_path: str) -> None:
     run_ctx = setup_run(repo_root, is_scratch=is_scratch)
     seed_everything(cfg["random"]["seed"])
 
+    # v4 Part C (15/05/2026): conditional class flag for Ablation 5 taxonomy.
+    # Default False → 5-class taxonomy (CONDITIONAL preserved). When True,
+    # CONDITIONAL collapses to MONOTONIC_DOWN (DiffWalk treated as monotonic_down).
+    conditional_disabled = bool(cfg.get("taxonomy", {}).get("conditional_class_disabled", False))
+    set_conditional_disabled(conditional_disabled)
+    if conditional_disabled:
+        log.info("      [taxonomy] CONDITIONAL class DISABLED → 4-class taxonomy (DiffWalk → MONOTONIC_DOWN)")
+    else:
+        log.info("      [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)")
+
     # ---- 1. Load ----
-    log.info("[1/4] Load dataset...")
+    log.info("[Load Dataset]")
     X, y = load_dataset(cfg["paths"]["data_csv"], sample_n=sample_n, sample_seed=sample_seed)
     if sample_n is not None:
         log.info(f"      [DEV MODE] sampled n={sample_n} (seed={sample_seed}) -> scratch run")
     log.info(f"      shape: X={X.shape}, y={y.shape}, prevalence={y.mean():.4f}")
 
     # ---- 2. Split + train ----
-    log.info("[2/4] Train XGBoost...")
+    log.info("[Train XGBoost]")
     X_train, X_test, y_train, y_test = get_train_test_split(
         X, y,
         test_size=cfg["split"]["test_size"],
@@ -168,9 +191,35 @@ def main(config_path: str) -> None:
     log.info(f"      (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)")
 
     # ---- 3. Pick high-risk queries (shared across modes) ----
-    log.info(f"[3/4] CF generation (compare_modes={compare_modes})...")
-    n_eval = min(cfg["evaluate"]["n_test_instances"], len(X_test))
-    high_risk_idx = np.argsort(result["proba"])[-n_eval:]
+    log.info(f"[CF Generation] compare_modes={compare_modes}")
+
+    # v4 Part C (15/05/2026): risk_threshold_min support for Ablation 4 (class balance).
+    # When > 0, restricts query pool to patients with predicted P(diabetes=1) >= threshold
+    # BEFORE selecting top-N. Default 0.0 preserves original behavior (all patients eligible,
+    # top-N by ranking).
+    risk_threshold_min = float(cfg.get("evaluate", {}).get("risk_threshold_min", 0.0))
+    if risk_threshold_min > 0.0:
+        eligible_mask = result["proba"] >= risk_threshold_min
+        eligible_count = int(eligible_mask.sum())
+        log.info(f"      risk_threshold_min={risk_threshold_min:.2f} → eligible pool: {eligible_count}/{len(X_test)} test patients")
+        if eligible_count == 0:
+            raise ValueError(
+                f"No test patients meet risk_threshold_min={risk_threshold_min}. "
+                f"Max proba in test = {float(result['proba'].max()):.4f}. "
+                f"Lower threshold or check pipeline."
+            )
+        eligible_idx = np.where(eligible_mask)[0]
+        # Rank eligible patients by proba descending, take top-N
+        eligible_proba = result["proba"][eligible_idx]
+        order_within_eligible = np.argsort(eligible_proba)
+        n_eval = min(cfg["evaluate"]["n_test_instances"], eligible_count)
+        # Pick top-N highest proba within eligible
+        top_in_eligible = order_within_eligible[-n_eval:]
+        high_risk_idx = eligible_idx[top_in_eligible]
+    else:
+        n_eval = min(cfg["evaluate"]["n_test_instances"], len(X_test))
+        high_risk_idx = np.argsort(result["proba"])[-n_eval:]
+
     query_instances = X_test.iloc[high_risk_idx].reset_index(drop=True)
     log.info(f"      n_queries (high-risk): {n_eval}")
 
@@ -212,7 +261,7 @@ def main(config_path: str) -> None:
         )
     else:
         # Compare both modes back-to-back
-        log.info("[4a/4] Mode 1: GLOBAL (features_to_vary='all', no per-query constraints)")
+        log.info("[Global Mode] features_to_vary='all', no per-query constraints")
         summary_g, breakdowns_g = _run_one_eval(
             mode_label="global", per_query_flag=False,
             cfg=cfg, model_result=result,
@@ -223,7 +272,7 @@ def main(config_path: str) -> None:
         summary_g.to_csv(out_g, index=False)
         log.info(f"      Global CSV: {out_g}")
 
-        log.info("[4b/4] Mode 2: PER-QUERY (taxonomy-constrained)")
+        log.info("[Per-Query Mode] taxonomy-constrained")
         summary_pq, breakdowns_pq = _run_one_eval(
             mode_label="per_query", per_query_flag=True,
             cfg=cfg, model_result=result,
@@ -234,30 +283,52 @@ def main(config_path: str) -> None:
         summary_pq.to_csv(out_pq, index=False)
         log.info(f"      Per-query CSV: {out_pq}")
 
-        # Aggregate comparison
-        agg_g = summary_g.drop(columns=["i", "n_cfs"]).mean()
-        agg_pq = summary_pq.drop(columns=["i", "n_cfs"]).mean()
-        comparison = pd.DataFrame({
-            "metric": agg_g.index,
-            "global": agg_g.values,
-            "per_query": agg_pq.values,
-            "delta": (agg_pq.values - agg_g.values),
-            "rel_delta_pct": ((agg_pq.values - agg_g.values) / np.where(np.abs(agg_g.values) > 1e-9, agg_g.values, 1.0)) * 100,
-        })
-        out_cmp = output_dir / f"{run_ctx['run_id']}_comparison.csv"
-        comparison.to_csv(out_cmp, index=False)
-        log.info(f"      Comparison CSV: {out_cmp}")
-        log.info("      Comparison summary:")
-        for _, row in comparison.iterrows():
-            log.info(f"        {row['metric']:<22s} global={row['global']:.4f}  per_query={row['per_query']:.4f}  Δ={row['delta']:+.4f}")
-
-        # Per-feature breakdown for both modes
-        pf_g = aggregate_per_feature(breakdowns_g, mode_label="global")
-        pf_pq = aggregate_per_feature(breakdowns_pq, mode_label="per_query")
-        per_feat_df = pd.concat([pf_g, pf_pq], ignore_index=True)
+        # NEW: per-feature breakdown comparison
+        # v4 Part C v2 FIX: aggregate_per_feature signature is (per_query_results, mode_label).
+        # Call once per mode, concatenate. topk_violations.py expects long-form
+        # with 'mode' column to pivot on.
+        df_g = aggregate_per_feature(breakdowns_g, mode_label="global")
+        df_pq = aggregate_per_feature(breakdowns_pq, mode_label="per_query")
+        per_feat_df = pd.concat([df_g, df_pq], ignore_index=True)
         per_feat_csv = output_dir / f"{run_ctx['run_id']}_per_feature.csv"
         per_feat_df.to_csv(per_feat_csv, index=False)
         log.info(f"      Per-feature CSV: {per_feat_csv}")
+
+        # Aggregate metrics for notes
+        agg_g = summary_g.drop(columns=["i", "n_cfs"]).mean()
+        agg_pq = summary_pq.drop(columns=["i", "n_cfs"]).mean()
+
+        # v4 Part C v5 FIX (15/05/2026): rename verbose metric names to short form
+        # matching make_figures.py + analysis scripts expectations.
+        metric_rename = {
+            "proximity_L1": "proximity",
+            "plausibility_kNN50": "plausibility",
+            "wrong_direction_violations": "wrong_dir_violations",
+        }
+        agg_g.index = [metric_rename.get(n, n) for n in agg_g.index]
+        agg_pq.index = [metric_rename.get(n, n) for n in agg_pq.index]
+
+        # Comparison CSV (aggregate + delta) — suppress divide-by-zero warning
+        # when global=0 (e.g. immutable_violations always 0 in well-behaved runs).
+        with np.errstate(divide='ignore', invalid='ignore'):
+            comparison = pd.DataFrame({
+                "metric": agg_g.index,
+                "global": agg_g.values,
+                "per_query": agg_pq.values,
+                "delta_abs": agg_pq.values - agg_g.values,
+                "rel_delta_pct": 100.0 * (agg_pq.values - agg_g.values) / agg_g.values,
+            })
+        comp_csv = output_dir / f"{run_ctx['run_id']}_comparison.csv"
+        comparison.to_csv(comp_csv, index=False)
+        log.info(f"      Comparison CSV: {comp_csv}")
+
+        # v4 Part C v5 FIX: emit Comparison summary log block (matches run 12:19 format)
+        log.info("      Comparison summary:")
+        for metric in agg_g.index:
+            g_val = float(agg_g[metric])
+            pq_val = float(agg_pq[metric])
+            delta = pq_val - g_val
+            log.info(f"        {metric:<22s} global={g_val:.4f}  per_query={pq_val:.4f}  Δ={delta:+.4f}")
 
         notes_str = (
             f"compare_modes=True; method={cfg['dice']['method']}; "
@@ -266,6 +337,12 @@ def main(config_path: str) -> None:
             f"actionability[g={agg_g['actionability']:.4f}|pq={agg_pq['actionability']:.4f}]; "
             f"AUC={result['auc']:.4f}"
         )
+
+    # v4 Part C (15/05/2026): append notes_suffix for ablation grouping
+    # aggregate.py parses 'class_threshold=' and 'taxonomy_n_classes=' markers
+    notes_suffix = cfg.get("run", {}).get("notes_suffix", "").strip()
+    if notes_suffix:
+        notes_str = f"{notes_str}; {notes_suffix}"
 
     # §11.4 finalize
     finalize_run(
@@ -289,7 +366,11 @@ def main(config_path: str) -> None:
             "xgboost": dict(xgb_cfg.__dict__),
             "dice": dict(cfg["dice"]),
             "evaluate": cfg["evaluate"],
+            # v4 Part C: capture taxonomy config in hyperparameters JSON for reproducibility
+            "taxonomy": cfg.get("taxonomy", {}),
         },
+        # v4 update (15/05/2026): record extended classifier metrics for §4.2 main_vi
+        classifier_metrics=result.get("extended_metrics"),
         notes=notes_str,
     )
 
