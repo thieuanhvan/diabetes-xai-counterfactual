@@ -1,12 +1,42 @@
-numpy>=1.24,<2.0
-pandas>=2.0
-scikit-learn>=1.3
-xgboost>=2.0
-dice-ml>=0.11
-shap>=0.44
-pyyaml>=6.0
-joblib>=1.3
-tqdm>=4.65
-psutil>=5.9
-pytest>=7.4
-matplotlib>=3.7
+# requirements.txt — pinned for reproducibility
+# Versions match outputs/run_20260515_2144.json (authoritative ablation run).
+# Python 3.12.10 on Windows 10 / Ubuntu 22.04.
+#
+# Tested with these exact versions:
+#   - 17 ablation runs + 1 baseline (15/05/2026) all reproducible byte-identical
+#   - kdtree dtype fix in src/pipelines/counterfactual/dice_runner.py applied
+#     (3-line upcast to float64 after Data() construction; see docstring)
+#
+# To install:
+#     python -m venv .venv
+#     source .venv/bin/activate    # Linux/macOS
+#     .venv\Scripts\activate       # Windows
+#     pip install -r requirements.txt
+#
+# If you upgrade dice-ml beyond 0.12 OR pandas beyond 3.0.3, the kdtree
+# workaround may behave differently. Pin or test before upgrading.
+
+# Core scientific stack
+numpy==1.26.4
+pandas==3.0.3
+scipy==1.17.1
+
+# ML
+scikit-learn==1.8.0
+xgboost==3.2.0
+
+# Explainability
+dice-ml==0.12              # kdtree dtype bug — workaround in dice_runner.py
+shap==0.49.1               # not currently used in P4 pipeline; reserved for future TCAV
+
+# Configuration + I/O
+pyyaml==6.0.3
+tqdm==4.67.3
+joblib==1.5.3
+psutil==7.2.2              # used by §11.6 runtime.hardware capture
+
+# Visualization (optional — pipeline outputs valid without it)
+matplotlib>=3.8,<4.0
+
+# Testing (dev only)
+pytest>=7.4,<9.0
