@@ -7,8 +7,7 @@ does not block subsequent ablations.
 Pre-flight: detects whether Part C extensions are applied. If
 src.pipelines.counterfactual.feature_taxonomy.set_conditional_disabled is
 missing → Ablation 4 (class) and Ablation 5 (taxonomy) auto-skip with
-warning. This avoids wasting compute on runs that would produce duplicate
-data (without Part C, the override flags do nothing).
+warning.
 
 After all grids finish, builds 5 ablation_*_table.csv tables via
 ablation.aggregate (best-effort each).
@@ -26,6 +25,10 @@ Run overnight or while doing other work. Smoke-test 1 grid first if uncertain:
     python run_ablation_seed.py   # ~10 min single seed if SEEDS=[42] in that file
 
 §11.5 wrapper.
+
+v3 changes (16/05/2026): all 5 grids now set notes_suffix with 'ablation=<type>'
+marker so ablation.aggregate can filter strictly. Existing 'class_threshold='
+and 'taxonomy_n_classes=' markers preserved as secondary markers in their grids.
 """
 from __future__ import annotations
 
@@ -47,8 +50,7 @@ from ablation.core import run_grid
 # Part C detection — auto-skip ablation 4 + 5 if not applied
 # ──────────────────────────────────────────────────────────────────────
 def _part_c_applied() -> bool:
-    """Return True if Part C extensions are in place. Checks for the
-    set_conditional_disabled symbol added by Part C feature_taxonomy.py."""
+    """Return True if Part C extensions are in place."""
     try:
         from src.pipelines.counterfactual.feature_taxonomy import set_conditional_disabled  # noqa: F401
         return True
@@ -57,17 +59,17 @@ def _part_c_applied() -> bool:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Grid definitions — duplicated from individual wrappers so master is self-contained
+# Grid definitions — every grid sets 'ablation=<type>' notes_suffix marker
 # ──────────────────────────────────────────────────────────────────────
 def _grid_taxonomy():
     return [
         ("taxonomy_5class", {
             "taxonomy": {"conditional_class_disabled": False},
-            "run": {"notes_suffix": "taxonomy_n_classes=5"},
+            "run": {"notes_suffix": "ablation=taxonomy; taxonomy_n_classes=5"},
         }),
         ("taxonomy_4class", {
             "taxonomy": {"conditional_class_disabled": True},
-            "run": {"notes_suffix": "taxonomy_n_classes=4"},
+            "run": {"notes_suffix": "ablation=taxonomy; taxonomy_n_classes=4"},
         }),
     ]
 
@@ -79,7 +81,7 @@ def _grid_class():
                 "risk_threshold_min": threshold,
                 "n_test_instances": 200,
             },
-            "run": {"notes_suffix": f"class_threshold={threshold}"},
+            "run": {"notes_suffix": f"ablation=class; class_threshold={threshold}"},
         })
         for label, threshold in [
             ("general",   0.0),
@@ -91,7 +93,10 @@ def _grid_class():
 
 def _grid_n_cf():
     return [
-        (f"n_cf_{n}", {"dice": {"n_counterfactuals": n}})
+        (f"n_cf_{n}", {
+            "dice": {"n_counterfactuals": n},
+            "run": {"notes_suffix": f"ablation=n_cf; n_cf_value={n}"},
+        })
         for n in [1, 3, 5, 10]
     ]
 
@@ -101,6 +106,7 @@ def _grid_seed():
         (f"seed_{s}", {
             "random": {"seed": s},
             "xgboost": {"random_state": s},
+            "run": {"notes_suffix": f"ablation=seed; seed_value={s}"},
         })
         for s in [42, 123, 2024, 7, 31337]
     ]
@@ -108,9 +114,11 @@ def _grid_seed():
 
 def _grid_method():
     return [
-        ("method_random",  {"dice": {"method": "random"}}),
-        ("method_genetic", {"dice": {"method": "genetic"}}),
-        ("method_kdtree",  {"dice": {"method": "kdtree"}}),
+        (f"method_{m}", {
+            "dice": {"method": m},
+            "run": {"notes_suffix": f"ablation=method; method_value={m}"},
+        })
+        for m in ["random", "genetic", "kdtree"]
     ]
 
 
@@ -179,12 +187,10 @@ if __name__ == "__main__":
         print(f"    {i}. {spec['name']:<10} ({marker})")
     print()
 
-    # Execute each ablation
     results = []
     for spec in ABLATIONS:
         results.append(_safe_run_ablation(spec, part_c_ok))
 
-    # Build aggregate tables for each non-skipped ablation
     print()
     print("█" * 70)
     print("█  AGGREGATING TABLES")
@@ -194,7 +200,6 @@ if __name__ == "__main__":
             print(f"\n[run_ablation_all] Aggregating {r['name']} table...")
             _safe_aggregate(r["name"])
 
-    # Final summary
     total_elapsed_min = (time.time() - t_start) / 60
     print()
     print("█" * 70)
@@ -214,4 +219,4 @@ if __name__ == "__main__":
         if r["status"] == "ok":
             print(f"    outputs/ablation_{r['name']}_table.csv")
     print()
-    print("[run_ablation_all] Done. Ready to integrate vào main_vi v5 §4.5.x.")
+    print("[run_ablation_all] Done. Ready to integrate vào main_vi v7+ §4.5.x.")
