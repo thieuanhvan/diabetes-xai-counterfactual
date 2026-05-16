@@ -1,12 +1,16 @@
 """Run logger + config JSON sidecar per generalrule §11.4/§11.5/§11.6.
 
-Each authoritative run emits 2 artifacts cùng base name trong outputs/:
-- outputs/run_{YYYYMMDD_HHMM}.log       (plaintext, Python logging module)
-- outputs/run_{YYYYMMDD_HHMM}.json      (UTF-8, indent=2, §11.4 schema)
+Each authoritative run emits 2 artifacts cùng base name trong logs/:
+- logs/run_{YYYYMMDD_HHMM}.log       (plaintext, Python logging module)
+- logs/run_{YYYYMMDD_HHMM}.json      (UTF-8, indent=2, §11.4 schema)
 
 Scratch runs (is_scratch=True) thêm '_scratch' marker:
-- outputs/run_scratch_{YYYYMMDD_HHMM}.{log,json}
-→ auto-gitignored per pattern 'outputs/run*_scratch_*'.
+- logs/run_scratch_{YYYYMMDD_HHMM}.{log,json}
+→ auto-gitignored per pattern 'logs/run*_scratch_*'.
+
+Data outputs (CSV, figures) ghi vào outputs/ KHÔNG có run_id prefix, mỗi
+run overwrites (Paper 2 convention). Run identification cho data outputs
+nằm trong logs/ sidecar pairing, KHÔNG qua filename trong outputs/.
 
 Schema fields (§11.4 + §11.6):
 - run_id, is_scratch
@@ -134,11 +138,18 @@ def setup_run(repo_root: Path, is_scratch: bool = False) -> Dict[str, Any]:
     """Configure logging + return run context.
 
     Args:
-        repo_root: project root for outputs/ folder.
+        repo_root: project root for logs/ and outputs/ folders.
         is_scratch: if True, filename gets '_scratch' marker → auto-gitignored.
 
     Returns context dict with run_id, paths, timestamp, repo_root, is_scratch.
+
+    Folders created:
+    - logs/    — log + config JSON sidecar, preserved per run (audit trail).
+    - outputs/ — data + figures, overwritten each run (latest-only).
     """
+    logs_dir = repo_root / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
     outputs_dir = repo_root / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -147,8 +158,8 @@ def setup_run(repo_root: Path, is_scratch: bool = False) -> Dict[str, Any]:
     # v38: drop counter, pure datetime → run_20260513_1654 or run_scratch_20260513_1146
     run_id = f"run{scratch_tag}_{ts}"
 
-    log_path = outputs_dir / f"{run_id}.log"
-    config_path = outputs_dir / f"{run_id}.json"
+    log_path = logs_dir / f"{run_id}.log"
+    config_path = logs_dir / f"{run_id}.json"
 
     logging.basicConfig(
         level=logging.INFO,

@@ -243,7 +243,7 @@ def main(config_path: str) -> None:
             X_train=X_train, y_train=y_train, X_test=X_test,
             query_instances=query_instances, n_eval=n_eval,
         )
-        out_csv = output_dir / f"{run_ctx['run_id']}_cf_metrics.csv"
+        out_csv = output_dir / "cf_metrics.csv"
         summary.to_csv(out_csv, index=False)
         log.info(f"      Per-instance CSV: {out_csv}")
         log.info("      Aggregate metrics:")
@@ -253,7 +253,7 @@ def main(config_path: str) -> None:
 
         # NEW: per-feature breakdown for the single mode
         per_feat_df = aggregate_per_feature(breakdowns, mode_label=mode_label)
-        per_feat_csv = output_dir / f"{run_ctx['run_id']}_per_feature.csv"
+        per_feat_csv = output_dir / "per_feature.csv"
         per_feat_df.to_csv(per_feat_csv, index=False)
         log.info(f"      Per-feature CSV: {per_feat_csv}")
 
@@ -272,7 +272,7 @@ def main(config_path: str) -> None:
             X_train=X_train, y_train=y_train, X_test=X_test,
             query_instances=query_instances, n_eval=n_eval,
         )
-        out_g = output_dir / f"{run_ctx['run_id']}_global_cf_metrics.csv"
+        out_g = output_dir / "global_cf_metrics.csv"
         summary_g.to_csv(out_g, index=False)
         log.info(f"      Global CSV: {out_g}")
 
@@ -283,7 +283,7 @@ def main(config_path: str) -> None:
             X_train=X_train, y_train=y_train, X_test=X_test,
             query_instances=query_instances, n_eval=n_eval,
         )
-        out_pq = output_dir / f"{run_ctx['run_id']}_perquery_cf_metrics.csv"
+        out_pq = output_dir / "perquery_cf_metrics.csv"
         summary_pq.to_csv(out_pq, index=False)
         log.info(f"      Per-query CSV: {out_pq}")
 
@@ -294,7 +294,7 @@ def main(config_path: str) -> None:
         df_g = aggregate_per_feature(breakdowns_g, mode_label="global")
         df_pq = aggregate_per_feature(breakdowns_pq, mode_label="per_query")
         per_feat_df = pd.concat([df_g, df_pq], ignore_index=True)
-        per_feat_csv = output_dir / f"{run_ctx['run_id']}_per_feature.csv"
+        per_feat_csv = output_dir / "per_feature.csv"
         per_feat_df.to_csv(per_feat_csv, index=False)
         log.info(f"      Per-feature CSV: {per_feat_csv}")
 
@@ -322,7 +322,7 @@ def main(config_path: str) -> None:
                 "delta_abs": agg_pq.values - agg_g.values,
                 "rel_delta_pct": 100.0 * (agg_pq.values - agg_g.values) / agg_g.values,
             })
-        comp_csv = output_dir / f"{run_ctx['run_id']}_comparison.csv"
+        comp_csv = output_dir / "comparison.csv"
         comparison.to_csv(comp_csv, index=False)
         log.info(f"      Comparison CSV: {comp_csv}")
 

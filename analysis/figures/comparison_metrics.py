@@ -99,8 +99,10 @@ def generate(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Output base name: replace '_comparison' with '_fig_comparison_metrics'
-    base = comparison_csv.stem.replace('_comparison', '_fig_comparison_metrics')
+    # Output base name: fixed, no run_id prefix (Paper 2 convention).
+    # outputs/ reflects latest run only; manuscript references fig_*.png
+    # unambiguously regardless of when the run happened.
+    base = 'fig_comparison_metrics'
     png_path = output_dir / f"{base}.png"
     pdf_path = output_dir / f"{base}.pdf"
 
@@ -118,7 +120,7 @@ def generate(
     global_vals = [df.loc[m, 'global']        for m in ORDERED_METRICS]
     perq_vals   = [df.loc[m, 'per_query']     for m in ORDERED_METRICS]
     rel_deltas  = [df.loc[m, 'rel_delta_pct'] for m in ORDERED_METRICS]
-    abs_deltas  = [df.loc[m, 'delta']         for m in ORDERED_METRICS]
+    abs_deltas  = [df.loc[m, 'delta_abs']     for m in ORDERED_METRICS]
 
     bar_colors = [_rel_delta_color(m, d) for m, d in zip(ORDERED_METRICS, rel_deltas)]
 

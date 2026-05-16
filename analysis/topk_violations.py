@@ -5,15 +5,16 @@ Two ways to invoke:
 2. Standalone: `python analysis/topk_violations.py` (right-click → Run trong
    PyCharm cũng được). Regen ranking cho LATEST run mà không re-pipeline.
 
-Không nhận tham số CLI — luôn dùng run mới nhất trong outputs/.
-Nếu cần target run cụ thể, edit RUN_ID_OVERRIDE bên dưới.
+Per Paper 2 convention (Generalrule §11.4): outputs/ phản ánh latest run
+only — KHÔNG có run_id prefix trên filename. Mỗi run overwrites previous
+contents. Audit trail của các run cũ nằm ở logs/run_{ts}.{log,json}.
 
 Output:
-1. CSV: outputs/run_*_topk_violations.csv — features ranked by violation
+1. CSV: outputs/topk_violations.csv — features ranked by violation
    reduction (descending). Includes both modes' counts so reviewers can
    see whether per-query mode suppressed the feature entirely or just
    redirected its usage.
-2. Markdown table: outputs/run_*_topk_violations.md
+2. Markdown table: outputs/topk_violations.md
    for easy paste into manuscript §4.4 or supplementary materials.
 """
 from __future__ import annotations
@@ -25,11 +26,6 @@ from typing import Optional
 import pandas as pd
 
 
-# Hardcode 1 run_id cụ thể nếu cần regen cho run cũ. None = run mới nhất.
-RUN_ID_OVERRIDE: Optional[str] = None
-# Ví dụ: RUN_ID_OVERRIDE = "run_20260513_1749"
-
-
 # ──────────────────────────────────────────────────────────────────────
 # §11.5 — file này ở analysis/ (1 level deep) nên repo root = parent.parent
 # ──────────────────────────────────────────────────────────────────────
@@ -38,26 +34,14 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-def find_latest_per_feature_csv(outputs_dir: Path) -> Path:
-    """Lexicographic sort on filename = datetime sort (YYYYMMDD_HHMM sortable)."""
-    candidates = sorted(outputs_dir.glob("run_*_per_feature.csv"))
-    if not candidates:
+def _require_csv(outputs_dir: Path, name: str) -> Path:
+    """Resolve a CSV in outputs/ by exact filename."""
+    csv_path = outputs_dir / name
+    if not csv_path.exists():
         raise FileNotFoundError(
-            f"No run_*_per_feature.csv in {outputs_dir}. "
+            f"Not found: {csv_path}. "
             "Cần chạy pipeline với compare_modes=true trước."
         )
-    return candidates[-1]
-
-
-def find_csv_for_run(outputs_dir: Path, run_id: str) -> Path:
-    csv_path = outputs_dir / f"{run_id}_per_feature.csv"
-    if not csv_path.exists():
-        available = sorted(outputs_dir.glob("run_*_per_feature.csv"))
-        msg = f"Not found: {csv_path}"
-        if available:
-            msg += f"\nAvailable runs in {outputs_dir}:\n  "
-            msg += "\n  ".join(p.name for p in available)
-        raise FileNotFoundError(msg)
     return csv_path
 
 
@@ -150,23 +134,17 @@ def to_markdown(ranking: pd.DataFrame, top_k: Optional[int] = None) -> str:
 
 
 def main() -> None:
-    """Generate ranking from latest run (or RUN_ID_OVERRIDE if set)."""
+    """Generate ranking from the latest run in outputs/."""
     outputs_dir = REPO_ROOT / "outputs"
-
-    if RUN_ID_OVERRIDE is not None:
-        csv_path = find_csv_for_run(outputs_dir, RUN_ID_OVERRIDE)
-    else:
-        csv_path = find_latest_per_feature_csv(outputs_dir)
+    csv_path = _require_csv(outputs_dir, "per_feature.csv")
 
     print(f"[topk_violations] Repo root: {REPO_ROOT}")
     print(f"[topk_violations] Input CSV: {csv_path}")
 
     ranking = compute_ranking(csv_path)
 
-    # Derive output base name
-    base = csv_path.stem.replace('_per_feature', '_topk_violations')
-    csv_out = outputs_dir / f"{base}.csv"
-    md_out  = outputs_dir / f"{base}.md"
+    csv_out = outputs_dir / "topk_violations.csv"
+    md_out  = outputs_dir / "topk_violations.md"
 
     ranking.to_csv(csv_out, index=False)
     print(f"[topk_violations] CSV saved: {csv_out}")

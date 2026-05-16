@@ -23,15 +23,26 @@ data/raw/
 data/*.csv
 data/*.parquet
 
-# Run artifacts per §11.4 (v37): outputs/ holds log + JSON + CSV per run.
-# Authoritative runs ARE committed for reviewer reproducibility.
+# Run artifacts per §11.4 (16/05/2026 convention):
+# - logs/ holds log + config JSON sidecar, preserved per run (audit trail).
+# - outputs/ holds data + figures, overwritten each run (latest-only).
+# Authoritative artifacts ARE committed for reviewer reproducibility.
 # Scratch runs auto-excluded via _scratch_ marker.
+
+# logs/: keep authoritative run logs + configs, ignore scratch
+logs/*
+!logs/.gitkeep
+!logs/run_[0-9]*.log
+!logs/run_[0-9]*.json
+logs/run_scratch_*
+
+# outputs/: keep data outputs + figures of latest run (no run_id prefix)
 outputs/*
 !outputs/.gitkeep
-!outputs/run*.log
-!outputs/run*.json
-!outputs/run*_cf_metrics.csv
-outputs/run*_scratch_*
+!outputs/*.csv
+!outputs/*.md
+!outputs/fig_*.png
+!outputs/fig_*.pdf
 
 # Models
 *.pkl

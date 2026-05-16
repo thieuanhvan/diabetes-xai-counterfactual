@@ -92,8 +92,10 @@ def generate(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Derive output base name: replace '_per_feature' with '_fig_per_feature'
-    base = per_feature_csv.stem.replace('_per_feature', '_fig_per_feature')
+    # Derive output base name: fixed, no run_id prefix (Paper 2 convention).
+    # outputs/ reflects latest run only; manuscript references fig_*.png
+    # unambiguously regardless of when the run happened.
+    base = 'fig_per_feature'
     png_path = output_dir / f"{base}.png"
     pdf_path = output_dir / f"{base}.pdf"
 
