@@ -14,14 +14,27 @@ Mutability "intervention-direction" lens (v1, 12/05/2026):
 
 Total: 21 features = 4 + 7 + 8 + 1 + 1.
 
-Module-level flag _CONDITIONAL_CLASS_DISABLED supports the taxonomy-granularity
-ablation (5-class vs 4-class). When True, the CONDITIONAL class is collapsed to
-MONOTONIC_DOWN — DiffWalk is treated as monotonic_down for both
-get_features_to_vary_for_query and get_permitted_range_for_query.
+Two module-level flags support the taxonomy-granularity ablations:
 
-Setter: set_conditional_disabled(True/False). main.py calls this once at
-startup based on cfg["taxonomy"]["conditional_class_disabled"]. Flag persists
-for the duration of the run.
+(1) _CONDITIONAL_CLASS_DISABLED — 5-class vs 4-class.
+    When True, CONDITIONAL collapses to MONOTONIC_DOWN (DiffWalk eligible).
+    Setter: set_conditional_disabled(True/False).
+
+(2) _SOCIOECONOMIC_PROXIES_IMMUTABLE — 4-class/5-class vs 3-class conservative.
+    When True, the SOCIOECONOMIC_PROXY_FEATURES (Income, Education,
+    AnyHealthcare) collapse from MONOTONIC_UP to IMMUTABLE. This implements
+    the "recourse tier 3 (socioeconomic proxies)" ablation — treating
+    features that ML models exploit as risk-correlates but that patients
+    cannot actionably modify in screening-recommendation contexts.
+    Setter: set_socioeconomic_proxies_immutable(True/False).
+
+Both flags compose: 3-class conservative variant = MONOTONIC_UP collapsed for
+3 proxy features + remaining 4 mutability classes (immutable / monotonic_up
+for behavioral / monotonic_down / bidirectional). Conditional class is
+orthogonal — either flag may be set independently.
+
+main.py calls both setters once at startup based on cfg["taxonomy"] keys.
+Flags persist for the duration of the run.
 """
 from __future__ import annotations
 
@@ -46,6 +59,17 @@ class FeatureSpec:
     mutability: Mutability
     value_range: Tuple[float, float]
     semantic_label: str
+
+
+# Three socioeconomic-proxy features classified MONOTONIC_UP in the 5-class
+# default taxonomy but reclassified IMMUTABLE under the conservative variant.
+# Rationale: these features correlate with diabetes risk in BRFSS through
+# selection effects (people with established conditions interact more with
+# healthcare and self-report more education context-sensitively) rather than
+# through direct causal pathways patients can act on. Treating them as
+# IMMUTABLE in a conservative variant tests how much of the actionability
+# score depends on counterfactuals being allowed to push these proxy features.
+SOCIOECONOMIC_PROXY_FEATURES = frozenset({"Income", "Education", "AnyHealthcare"})
 
 
 FEATURE_TAXONOMY: Dict[str, FeatureSpec] = {
@@ -83,9 +107,10 @@ FEATURE_TAXONOMY: Dict[str, FeatureSpec] = {
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Conditional class disable flag — supports taxonomy-granularity ablation
+# Ablation flags — taxonomy granularity variants
 # ──────────────────────────────────────────────────────────────────────
 _CONDITIONAL_CLASS_DISABLED = False
+_SOCIOECONOMIC_PROXIES_IMMUTABLE = False
 
 
 def set_conditional_disabled(flag: bool) -> None:
@@ -109,12 +134,49 @@ def is_conditional_disabled() -> bool:
     return _CONDITIONAL_CLASS_DISABLED
 
 
+def set_socioeconomic_proxies_immutable(flag: bool) -> None:
+    """Set whether Income/Education/AnyHealthcare are collapsed to IMMUTABLE.
+
+    When True (3-class conservative variant), the three SOCIOECONOMIC_PROXY_FEATURES
+    are reclassified from MONOTONIC_UP to IMMUTABLE — DiCE will never alter
+    them, regardless of patient baseline.
+
+    When False (default = 5-class or 4-class taxonomies), the three features
+    retain their MONOTONIC_UP class. This is the variant evaluated in the
+    main results (§4).
+
+    Effect persists until set_socioeconomic_proxies_immutable(False) or
+    process exit.
+    """
+    global _SOCIOECONOMIC_PROXIES_IMMUTABLE
+    _SOCIOECONOMIC_PROXIES_IMMUTABLE = bool(flag)
+
+
+def is_socioeconomic_proxies_immutable() -> bool:
+    """Return current state of the socioeconomic-proxies immutable flag."""
+    return _SOCIOECONOMIC_PROXIES_IMMUTABLE
+
+
 def _effective_mutability(spec: FeatureSpec) -> Mutability:
-    """Return spec.mutability, with CONDITIONAL collapsed to MONOTONIC_DOWN
-    when the global disable flag is set. Used by query helpers below.
+    """Return spec.mutability with ablation-flag collapses applied.
+
+    Collapses applied in order:
+    1. CONDITIONAL → MONOTONIC_DOWN when _CONDITIONAL_CLASS_DISABLED set.
+    2. MONOTONIC_UP → IMMUTABLE when _SOCIOECONOMIC_PROXIES_IMMUTABLE set
+       AND feature name is in SOCIOECONOMIC_PROXY_FEATURES.
+
+    Both flags compose: e.g. 3-class conservative = collapse (2) applied
+    on top of the default 5-class definition. The two flags are orthogonal
+    and may be set independently.
     """
     if spec.mutability == Mutability.CONDITIONAL and _CONDITIONAL_CLASS_DISABLED:
         return Mutability.MONOTONIC_DOWN
+    if (
+        spec.mutability == Mutability.MONOTONIC_UP
+        and _SOCIOECONOMIC_PROXIES_IMMUTABLE
+        and spec.name in SOCIOECONOMIC_PROXY_FEATURES
+    ):
+        return Mutability.IMMUTABLE
     return spec.mutability
 
 
@@ -170,6 +232,7 @@ def get_features_to_vary_for_query(query: pd.Series) -> List[str]:
     - IMMUTABLE / CONDITIONAL (5-class): always excluded
     - CONDITIONAL → MONOTONIC_DOWN (4-class via flag): treated like other
       monotonic_down features (DiffWalk eligible if patient.DiffWalk > 0)
+    - SOCIOECONOMIC_PROXY → IMMUTABLE (3-class via flag): always excluded
     """
     features = []
     for name, spec in FEATURE_TAXONOMY.items():
@@ -202,6 +265,11 @@ def get_permitted_range_for_query(query: pd.Series) -> Dict[str, List[float]]:
 
     When _CONDITIONAL_CLASS_DISABLED (flag set), DiffWalk is treated as
     MONOTONIC_DOWN — gets [0, current] range if patient.DiffWalk > 0.
+
+    When _SOCIOECONOMIC_PROXIES_IMMUTABLE (flag set), Income/Education/
+    AnyHealthcare are treated as IMMUTABLE — receive their full feature
+    range to satisfy DiCE's API but are excluded from features_to_vary
+    so DiCE never perturbs them.
     """
     ftv = set(get_features_to_vary_for_query(query))
     permitted: Dict[str, List[float]] = {}

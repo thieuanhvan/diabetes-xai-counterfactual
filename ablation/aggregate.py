@@ -1,169 +1,131 @@
-"""Post-ablation aggregation — read run JSONs, build comparison CSVs.
+"""Post-ablation aggregation — read per-cell archives, build comparison CSVs.
 
-After each ablation finishes (e.g. multi-seed = 5 runs), call the matching
-build_table_*() function here to compress the N outputs/run_*.json files into
-a single comparison CSV ready for Bảng 4.5.x in main_vi v7.
+After each ablation grid finishes (e.g. multi-seed = 5 runs), call the matching
+build_table_*() function here to compress N archived cell directories into a
+single comparison CSV ready for Bảng 4.5.x in main_vi v7.
 
-Discovery pattern:
-- Each run produces outputs/run_<YYYYMMDD_HHMM>.json with config in 'hyperparameters'
-- aggregate functions filter runs by 'ablation=<type>' marker in notes_suffix
-  (PRIMARY) with fallback to config-field filter + dedup-by-latest-timestamp
-  (SECONDARY, for runs predating the marker convention)
-- Output CSVs go to outputs/ablation_<name>_table.csv
+Source of truth:
+- outputs/_ablation_archive/<cell_name>/ created by ablation.core._snapshot_outputs
+- Each archive contains:
+    - manifest.json     (cell_name, run_id, ablation_type, notes_kv)
+    - config.json       (copy of logs/run_<TS>.json — full §11.4 sidecar)
+    - comparison.csv    (pre-aggregated global vs per_query metrics)
+    - perquery_cf_metrics.csv  (per-instance metrics; aggregator means it)
+    - global_cf_metrics.csv
+    - per_feature.csv
 
-Per Generalrule v37 §11.4 — output paths back into outputs/ so they live
-alongside the data they summarize.
+Output CSVs go to outputs/ablation_<name>_table.csv per Generalrule v38 §11.4.
 
-Usage examples (run from repo root):
+v4 (16/05/2026): rewritten against _ablation_archive/. Drops the 2-pass
+marker-vs-fallback filter — the manifest.ablation_type field is now the single
+source of truth, written at snapshot time by core.py.
+
+Backward compat: NONE. The old aggregator (reading outputs/run_*.json) never
+worked because the pipeline writes JSONs to logs/ not outputs/. Anyone with
+historical outputs/run_*.json files predating the snapshot system is on the
+v3 codepath and should re-run their ablations.
+
+Usage (run from repo root):
 
     python -m ablation.aggregate seed       # build Bảng 4.5.1
     python -m ablation.aggregate method     # build Bảng 4.5.2
     python -m ablation.aggregate n_cf       # build Bảng 4.5.3
     python -m ablation.aggregate class      # build Bảng 4.5.4
     python -m ablation.aggregate taxonomy   # build Bảng 4.5.5
-
-Or import + call programmatically from a wrapper.
-
-NOTE: aggregator reads CF metric CSVs (run_*_cf_metrics.csv) for per-instance
-metrics + JSON sidecars for run config. JSON-only would miss aggregate metric
-values which live in the per-instance CSV not the config dict.
-
-v3 changes (16/05/2026): primary filter via 'ablation=<type>' marker added to
-seed/n_cf/method grids in run_ablation_all.py. For each builder:
-1. PRIMARY pass: filter runs where notes contains 'ablation=<type>'. If found,
-   use only those.
-2. FALLBACK pass: if no marker-tagged runs found, filter by config field +
-   dedup by latest timestamp per unique parameter value. Preserves backward
-   compat with runs predating the marker convention (e.g. 15/05/2026 session).
+    python -m ablation.aggregate all        # build all 5 in one go
 """
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = REPO_ROOT / "outputs"
+ARCHIVE_ROOT = OUTPUTS_DIR / "_ablation_archive"
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Discovery + loading
+# Archive discovery + loading
 # ──────────────────────────────────────────────────────────────────────
-def list_recent_runs(limit: int = 100) -> List[Path]:
-    """Return list of run JSONs sorted oldest → newest by filename timestamp."""
-    runs = sorted(OUTPUTS_DIR.glob("run_*.json"))
-    runs = [r for r in runs if "_scratch_" not in r.stem]
-    return runs[-limit:]
+ArchivedCell = Tuple[str, Path, Dict[str, Any]]
+# (cell_name, archive_dir, manifest_dict)
 
 
-def load_run(json_path: Path) -> Dict[str, Any]:
-    """Load JSON sidecar."""
-    with open(json_path, encoding="utf-8") as f:
+def list_archived_cells() -> List[ArchivedCell]:
+    """Scan outputs/_ablation_archive/* for per-cell snapshots.
+
+    Returns list sorted by cell_name. Cells without a manifest.json are skipped
+    with a warning (they may be partial snapshots from a crashed run).
+    """
+    if not ARCHIVE_ROOT.exists():
+        return []
+    cells: List[ArchivedCell] = []
+    for cell_dir in sorted(ARCHIVE_ROOT.iterdir()):
+        if not cell_dir.is_dir():
+            continue
+        manifest_path = cell_dir / "manifest.json"
+        if not manifest_path.exists():
+            print(f"  [WARN] skipping {cell_dir.name}: no manifest.json")
+            continue
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                manifest = json.load(f)
+        except Exception as e:
+            print(f"  [WARN] skipping {cell_dir.name}: manifest unreadable ({e})")
+            continue
+        cells.append((cell_dir.name, cell_dir, manifest))
+    return cells
+
+
+def filter_by_ablation_type(cells: List[ArchivedCell], ablation_type: str) -> List[ArchivedCell]:
+    """Keep only cells whose manifest.ablation_type matches."""
+    return [c for c in cells if c[2].get("ablation_type") == ablation_type]
+
+
+def load_cell_config(cell_dir: Path) -> Dict[str, Any]:
+    """Read the cell's copied §11.4 config sidecar (config.json)."""
+    config_path = cell_dir / "config.json"
+    if not config_path.exists():
+        return {}
+    with open(config_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def find_matching_cf_csv(json_path: Path, mode: str = "perquery") -> Optional[Path]:
-    """Given outputs/run_X.json, find matching outputs/run_X_<mode>_cf_metrics.csv."""
-    run_id = json_path.stem
-    candidate = OUTPUTS_DIR / f"{run_id}_{mode}_cf_metrics.csv"
-    if candidate.exists():
-        return candidate
-    fallback = OUTPUTS_DIR / f"{run_id}_cf_metrics.csv"
-    if fallback.exists():
-        return fallback
-    return None
+def aggregate_perquery_metrics(cell_dir: Path) -> Dict[str, float]:
+    """Mean of all per-instance metric columns in perquery_cf_metrics.csv.
 
-
-def aggregate_metrics(cf_csv: Path) -> Dict[str, float]:
-    """Mean of all per-instance metric columns in a cf_metrics CSV."""
-    df = pd.read_csv(cf_csv)
-    drop_cols = [c for c in ("i", "n_cfs") if c in df.columns]
-    return df.drop(columns=drop_cols).mean().to_dict()
-
-
-def _has_ablation_marker(notes: str, ablation_type: str) -> bool:
-    """Return True if notes contains 'ablation=<type>' marker."""
-    return f"ablation={ablation_type}" in notes
-
-
-def _filter_by_marker_or_fallback(
-    runs: List[Path],
-    ablation_type: str,
-    config_filter_fn,
-    dedup_key_fn,
-) -> List[tuple]:
-    """Two-pass filter: marker first, dedup-by-config-field as fallback.
-
-    Returns list of (json_path, cfg) tuples ready for row construction.
-
-    config_filter_fn(cfg) -> bool: True if run matches the ablation parameter family.
-    dedup_key_fn(cfg) -> hashable: parameter value to dedup on (e.g. seed value).
+    Drops the 'i' and 'n_cfs' index/count columns. NaN entries (failed CFs)
+    are skipped via pandas default mean behavior.
     """
-    # Pass 1: marker-tagged runs
-    marker_runs = []
-    for jp in runs:
-        cfg = load_run(jp)
-        if _has_ablation_marker(cfg.get("notes", ""), ablation_type):
-            marker_runs.append((jp, cfg))
-
-    if marker_runs:
-        return marker_runs
-
-    # Pass 2 (fallback): config-field filter + dedup by latest timestamp per
-    # unique parameter value. Runs sorted oldest→newest, so later runs in
-    # iteration overwrite earlier — same parameter value keeps latest.
-    by_param = {}
-    for jp in runs:
-        cfg = load_run(jp)
-        if not config_filter_fn(cfg):
-            continue
-        key = dedup_key_fn(cfg)
-        if key is None:
-            continue
-        by_param[key] = (jp, cfg)
-    return list(by_param.values())
+    csv = cell_dir / "perquery_cf_metrics.csv"
+    if not csv.exists():
+        return {}
+    df = pd.read_csv(csv)
+    drop_cols = [c for c in ("i", "n_cfs") if c in df.columns]
+    return df.drop(columns=drop_cols).mean(numeric_only=True).to_dict()
 
 
 # ──────────────────────────────────────────────────────────────────────
 # Per-ablation table builders
 # ──────────────────────────────────────────────────────────────────────
-def build_table_seed(runs: List[Path]) -> pd.DataFrame:
-    """Bảng 4.5.1 — multi-seed: 1 row per seed, columns = 4-8 metrics + AUC.
-
-    Primary filter: 'ablation=seed' marker. Fallback: method=random (default) +
-    config xgboost.random_state in seed grid + dedup by seed value (keep latest).
-    method=random filter prevents method-ablation runs (genetic/kdtree at seed=42)
-    from overriding the canonical seed-ablation run_1811.
-    """
-    SEED_GRID = {42, 123, 2024, 7, 31337}
-
-    def cf(cfg):
-        hyp = cfg.get("hyperparameters", {})
-        method = hyp.get("dice", {}).get("method")
-        s = hyp.get("xgboost", {}).get("random_state")
-        return method == "random" and s in SEED_GRID
-
-    def dk(cfg):
-        return cfg.get("hyperparameters", {}).get("xgboost", {}).get("random_state")
-
-    selected = _filter_by_marker_or_fallback(runs, "seed", cf, dk)
-
+def build_table_seed(cells: List[ArchivedCell]) -> pd.DataFrame:
+    """Bảng 4.5.1 — multi-seed: 1 row per seed + MEAN/STD summary rows."""
+    selected = filter_by_ablation_type(cells, "seed")
     rows = []
-    for jp, cfg in selected:
+    for cell_name, cell_dir, manifest in selected:
+        cfg = load_cell_config(cell_dir)
         hyp = cfg.get("hyperparameters", {})
         clf = cfg.get("classifier_metrics") or {}
-        seed = hyp.get("xgboost", {}).get("random_state")
-        cf_csv = find_matching_cf_csv(jp, mode="perquery")
-        if cf_csv is None:
-            continue
-        agg = aggregate_metrics(cf_csv)
+        agg = aggregate_perquery_metrics(cell_dir)
         rows.append({
-            "run_id": cfg["run_id"],
-            "seed": seed,
+            "run_id": cfg.get("run_id"),
+            "cell_name": cell_name,
+            "seed": hyp.get("xgboost", {}).get("random_state"),
             "AUC": clf.get("AUC_ROC"),
             "validity": agg.get("validity"),
             "actionability": agg.get("actionability"),
@@ -173,45 +135,34 @@ def build_table_seed(runs: List[Path]) -> pd.DataFrame:
             "proximity_L1": agg.get("proximity_L1"),
             "diversity": agg.get("diversity"),
         })
+    if not rows:
+        return pd.DataFrame()
     df = pd.DataFrame(rows).sort_values("seed").reset_index(drop=True)
     if len(df) >= 2:
-        numeric = df.select_dtypes(include="number").columns.drop("seed", errors="ignore")
+        numeric_cols = df.select_dtypes(include="number").columns.drop("seed", errors="ignore")
         summary = pd.DataFrame({
             "run_id": ["MEAN", "STD"],
+            "cell_name": ["—", "—"],
             "seed": ["—", "—"],
-            **{c: [df[c].mean(), df[c].std()] for c in numeric},
+            **{c: [df[c].mean(), df[c].std()] for c in numeric_cols},
         })
         df = pd.concat([df, summary], ignore_index=True)
     return df
 
 
-def build_table_method(runs: List[Path]) -> pd.DataFrame:
-    """Bảng 4.5.2 — method comparison: 1 row per method (random/genetic/kdtree).
-
-    Primary filter: 'ablation=method' marker. Fallback: dedup by method value.
-    """
-    METHODS = {"random", "genetic", "kdtree"}
-
-    def cf(cfg):
-        m = cfg.get("hyperparameters", {}).get("dice", {}).get("method")
-        return m in METHODS
-
-    def dk(cfg):
-        return cfg.get("hyperparameters", {}).get("dice", {}).get("method")
-
-    selected = _filter_by_marker_or_fallback(runs, "method", cf, dk)
-
+def build_table_method(cells: List[ArchivedCell]) -> pd.DataFrame:
+    """Bảng 4.5.2 — method comparison: 1 row per method (random/genetic/kdtree)."""
+    selected = filter_by_ablation_type(cells, "method")
     rows = []
-    for jp, cfg in selected:
-        method = cfg.get("hyperparameters", {}).get("dice", {}).get("method")
+    for cell_name, cell_dir, manifest in selected:
+        cfg = load_cell_config(cell_dir)
+        hyp = cfg.get("hyperparameters", {})
         clf = cfg.get("classifier_metrics") or {}
-        cf_csv = find_matching_cf_csv(jp, mode="perquery")
-        if cf_csv is None:
-            continue
-        agg = aggregate_metrics(cf_csv)
+        agg = aggregate_perquery_metrics(cell_dir)
         rows.append({
-            "run_id": cfg["run_id"],
-            "method": method,
+            "run_id": cfg.get("run_id"),
+            "cell_name": cell_name,
+            "method": hyp.get("dice", {}).get("method"),
             "AUC": clf.get("AUC_ROC"),
             "validity": agg.get("validity"),
             "actionability": agg.get("actionability"),
@@ -221,100 +172,91 @@ def build_table_method(runs: List[Path]) -> pd.DataFrame:
             "diversity": agg.get("diversity"),
             "plausibility_kNN50": agg.get("plausibility_kNN50"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).sort_values("method").reset_index(drop=True)
 
 
-def build_table_n_cf(runs: List[Path]) -> pd.DataFrame:
-    """Bảng 4.5.3 — n_counterfactuals sweep: 1 row per n_cf value.
-
-    Primary filter: 'ablation=n_cf' marker. Fallback: method=random (default) +
-    dedup by n_counterfactuals value.
-    """
-    N_CF_GRID = {1, 3, 5, 10}
-
-    def cf(cfg):
-        hyp = cfg.get("hyperparameters", {})
-        method = hyp.get("dice", {}).get("method")
-        n = hyp.get("dice", {}).get("n_counterfactuals")
-        return method == "random" and n in N_CF_GRID
-
-    def dk(cfg):
-        return cfg.get("hyperparameters", {}).get("dice", {}).get("n_counterfactuals")
-
-    selected = _filter_by_marker_or_fallback(runs, "n_cf", cf, dk)
-
+def build_table_n_cf(cells: List[ArchivedCell]) -> pd.DataFrame:
+    """Bảng 4.5.3 — n_counterfactuals sweep: 1 row per n_cf value."""
+    selected = filter_by_ablation_type(cells, "n_cf")
     rows = []
-    for jp, cfg in selected:
-        n_cf = cfg.get("hyperparameters", {}).get("dice", {}).get("n_counterfactuals")
-        cf_csv = find_matching_cf_csv(jp, mode="perquery")
-        if cf_csv is None:
-            continue
-        agg = aggregate_metrics(cf_csv)
+    for cell_name, cell_dir, manifest in selected:
+        cfg = load_cell_config(cell_dir)
+        hyp = cfg.get("hyperparameters", {})
+        agg = aggregate_perquery_metrics(cell_dir)
         rows.append({
-            "run_id": cfg["run_id"],
-            "n_counterfactuals": n_cf,
+            "run_id": cfg.get("run_id"),
+            "cell_name": cell_name,
+            "n_counterfactuals": hyp.get("dice", {}).get("n_counterfactuals"),
             "validity": agg.get("validity"),
             "actionability": agg.get("actionability"),
             "wrong_dir_violations": agg.get("wrong_direction_violations"),
             "sparsity": agg.get("sparsity"),
             "diversity": agg.get("diversity"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).sort_values("n_counterfactuals").reset_index(drop=True)
 
 
-def build_table_class(runs: List[Path]) -> pd.DataFrame:
+def build_table_class(cells: List[ArchivedCell]) -> pd.DataFrame:
     """Bảng 4.5.4 — class balance: 1 row per risk-threshold cohort.
 
-    Filter via 'class_threshold=' marker in notes (existing convention).
+    risk_threshold sourced from manifest.notes_kv['class_threshold'] (string).
     """
+    selected = filter_by_ablation_type(cells, "class")
     rows = []
-    for jp in runs:
-        cfg = load_run(jp)
-        notes = cfg.get("notes", "")
-        marker = "class_threshold="
-        if marker not in notes:
-            continue
-        threshold = notes.split(marker)[1].split(";")[0].strip()
-        cf_csv = find_matching_cf_csv(jp, mode="perquery")
-        if cf_csv is None:
-            continue
-        agg = aggregate_metrics(cf_csv)
+    for cell_name, cell_dir, manifest in selected:
+        cfg = load_cell_config(cell_dir)
+        notes_kv = manifest.get("notes_kv", {}) or {}
+        threshold = notes_kv.get("class_threshold", "?")
+        agg = aggregate_perquery_metrics(cell_dir)
         rows.append({
-            "run_id": cfg["run_id"],
+            "run_id": cfg.get("run_id"),
+            "cell_name": cell_name,
             "risk_threshold": threshold,
             "validity": agg.get("validity"),
             "actionability": agg.get("actionability"),
             "wrong_dir_violations": agg.get("wrong_direction_violations"),
             "sparsity": agg.get("sparsity"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).sort_values("risk_threshold").reset_index(drop=True)
 
 
-def build_table_taxonomy(runs: List[Path]) -> pd.DataFrame:
-    """Bảng 4.5.5 — 5-class vs 4-class taxonomy: 2 rows (paired comparison).
+def build_table_taxonomy(cells: List[ArchivedCell]) -> pd.DataFrame:
+    """Bảng 4.5.5 — taxonomy granularity: rows = taxonomy variants.
 
-    Filter via 'taxonomy_n_classes=' marker in notes (existing convention).
+    Supports 3 known variants:
+    - 5-class default (taxonomy_n_classes=5)
+    - 4-class collapsed (taxonomy_n_classes=4, DiffWalk→MONOTONIC_DOWN)
+    - 3-class conservative (taxonomy_n_classes=3, Income/Education/AnyHealthcare→IMMUTABLE)
+
+    Reads ablation parameter values from manifest.notes_kv (parsed at snapshot
+    time by core.py from the pipeline's notes_suffix string).
     """
+    selected = filter_by_ablation_type(cells, "taxonomy")
     rows = []
-    for jp in runs:
-        cfg = load_run(jp)
-        notes = cfg.get("notes", "")
-        marker = "taxonomy_n_classes="
-        if marker not in notes:
-            continue
-        n_classes = notes.split(marker)[1].split(";")[0].strip()
-        cf_csv = find_matching_cf_csv(jp, mode="perquery")
-        if cf_csv is None:
-            continue
-        agg = aggregate_metrics(cf_csv)
+    for cell_name, cell_dir, manifest in selected:
+        cfg = load_cell_config(cell_dir)
+        notes_kv = manifest.get("notes_kv", {}) or {}
+        n_classes = notes_kv.get("taxonomy_n_classes", "?")
+        variant = notes_kv.get("variant", "default")
+        agg = aggregate_perquery_metrics(cell_dir)
         rows.append({
-            "run_id": cfg["run_id"],
+            "run_id": cfg.get("run_id"),
+            "cell_name": cell_name,
             "taxonomy_n_classes": n_classes,
+            "variant": variant,
             "validity": agg.get("validity"),
             "actionability": agg.get("actionability"),
             "wrong_dir_violations": agg.get("wrong_direction_violations"),
             "immutable_violations": agg.get("immutable_violations"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).sort_values("taxonomy_n_classes").reset_index(drop=True)
 
 
@@ -330,26 +272,50 @@ BUILDERS = {
 }
 
 
-def main(ablation_type: str, limit: int = 100) -> Path:
+def main(ablation_type: str) -> Optional[Path]:
     """Build the table for one ablation type, save CSV to outputs/."""
     if ablation_type not in BUILDERS:
         raise ValueError(f"Unknown ablation type: {ablation_type}. Valid: {list(BUILDERS)}")
-    runs = list_recent_runs(limit=limit)
-    df = BUILDERS[ablation_type](runs)
+    cells = list_archived_cells()
+    if not cells:
+        print(f"⚠ No archived cells found in {ARCHIVE_ROOT}")
+        print("  Run `python run_ablation_all.py` (or --smoke) first to populate the archive.")
+        return None
+    df = BUILDERS[ablation_type](cells)
     if df.empty:
-        print(f"⚠ No matching runs found for ablation_type={ablation_type}")
-        print("  Check that runs were executed and config fields are tagged correctly.")
+        print(f"⚠ No matching cells found for ablation_type={ablation_type}")
+        print(f"  Found {len(cells)} archived cells; types present: "
+              f"{sorted(set((c[2].get('ablation_type') or '?') for c in cells))}")
         return None
     out_csv = OUTPUTS_DIR / f"ablation_{ablation_type}_table.csv"
     df.to_csv(out_csv, index=False)
-    print(f"✓ Built table: {out_csv}")
+    print(f"✓ Built table: {out_csv.relative_to(REPO_ROOT)}")
     print(df.to_string(index=False))
     return out_csv
+
+
+def main_all() -> Dict[str, Optional[Path]]:
+    """Build all 5 tables. Best-effort each. Returns map ablation_type → out path."""
+    results = {}
+    for atype in BUILDERS:
+        print()
+        print("=" * 60)
+        print(f"=== Building table: {atype}")
+        print("=" * 60)
+        try:
+            results[atype] = main(atype)
+        except Exception as e:
+            print(f"  [WARN] {atype} failed: {type(e).__name__}: {e}")
+            results[atype] = None
+    return results
 
 
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else None
     if arg is None:
-        print(f"Usage: python -m ablation.aggregate {'|'.join(BUILDERS)}")
+        print(f"Usage: python -m ablation.aggregate {'|'.join(BUILDERS)}|all")
         sys.exit(1)
-    main(arg)
+    if arg == "all":
+        main_all()
+    else:
+        main(arg)

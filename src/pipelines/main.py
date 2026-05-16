@@ -29,6 +29,7 @@ from src.pipelines.counterfactual.feature_taxonomy import (
     get_discrete_features,
     get_feature_ranges,
     set_conditional_disabled,
+    set_socioeconomic_proxies_immutable,
 )
 from src.pipelines.data.loader import TARGET_COL, load_dataset
 from src.pipelines.evaluate.cf_metrics import (
@@ -173,6 +174,14 @@ def main(config_path: str) -> None:
         log.info("      [taxonomy] CONDITIONAL class DISABLED → 4-class taxonomy (DiffWalk → MONOTONIC_DOWN)")
     else:
         log.info("      [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)")
+
+    # socioeconomic proxies flag for Ablation 5b (3-class conservative variant).
+    # Default False → Income/Education/AnyHealthcare retain MONOTONIC_UP. When True,
+    # those three SOCIOECONOMIC_PROXY_FEATURES collapse to IMMUTABLE.
+    se_proxies_immutable = bool(cfg.get("taxonomy", {}).get("socioeconomic_proxies_immutable", False))
+    set_socioeconomic_proxies_immutable(se_proxies_immutable)
+    if se_proxies_immutable:
+        log.info("      [taxonomy] SOCIOECONOMIC PROXIES IMMUTABLE → 3-class conservative (Income/Education/AnyHealthcare → IMMUTABLE)")
 
     # ---- 1. Load ----
     log.info("[Load Dataset]")

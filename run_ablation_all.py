@@ -12,7 +12,7 @@ class-balance ablations are skipped with a warning rather than crashing.
 After all grids finish, builds 5 ablation_*_table.csv tables via
 ablation.aggregate (best-effort each).
 
-Total wall-clock estimate (Vân hardware, all 5 ablations):
+Total wall-clock estimate (Vân hardware, all 5 ablations, n_test_instances=200):
 - Ablation 5 taxonomy (2 runs):  ~20 min
 - Ablation 4 class    (3 runs):  ~30 min
 - Ablation 3 n_cf     (4 runs):  ~40 min
@@ -21,17 +21,28 @@ Total wall-clock estimate (Vân hardware, all 5 ablations):
 ─────────────────────────────────────
 Total                  17 runs:  ~5-6h
 
-Run overnight or while doing other work. Smoke-test 1 grid first if uncertain:
-    python run_ablation_seed.py   # ~10 min single seed if SEEDS=[42] in that file
-
 §11.5 wrapper.
 
-v3 changes (16/05/2026): all 5 grids now set notes_suffix with 'ablation=<type>'
-marker so ablation.aggregate can filter strictly. Existing 'class_threshold='
-and 'taxonomy_n_classes=' markers preserved as secondary markers in their grids.
+v3 (16/05/2026): all 5 grids set notes_suffix with 'ablation=<type>' marker so
+ablation.aggregate can filter strictly. Existing 'class_threshold=' and
+'taxonomy_n_classes=' markers preserved as secondary markers in their grids.
+
+v4 (16/05/2026): added --smoke flag (~5-10 min total). Runs only ablation
+TAXONOMY (2 cells: 5class + 4class) with n_test_instances=20 override.
+Verifies the end-to-end pipeline + per-cell snapshot + aggregator before
+committing to the full ~5h run. Also added --clean to wipe
+outputs/_ablation_archive/ before starting.
+
+USAGE:
+    python run_ablation_all.py --smoke           # ~5-10 min, taxonomy only
+    python run_ablation_all.py --smoke --clean   # wipe archive first
+    python run_ablation_all.py                   # full ~5-6h run
+    python run_ablation_all.py --clean           # full run, fresh archive
 """
 from __future__ import annotations
 
+import argparse
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -43,7 +54,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-from ablation.core import run_grid
+from ablation.core import run_grid, ARCHIVE_ROOT
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -64,12 +75,25 @@ def _taxonomy_flag_available() -> bool:
 def _grid_taxonomy():
     return [
         ("taxonomy_5class", {
-            "taxonomy": {"conditional_class_disabled": False},
+            "taxonomy": {
+                "conditional_class_disabled": False,
+                "socioeconomic_proxies_immutable": False,
+            },
             "run": {"notes_suffix": "ablation=taxonomy; taxonomy_n_classes=5"},
         }),
         ("taxonomy_4class", {
-            "taxonomy": {"conditional_class_disabled": True},
+            "taxonomy": {
+                "conditional_class_disabled": True,
+                "socioeconomic_proxies_immutable": False,
+            },
             "run": {"notes_suffix": "ablation=taxonomy; taxonomy_n_classes=4"},
+        }),
+        ("taxonomy_3class_conservative", {
+            "taxonomy": {
+                "conditional_class_disabled": False,
+                "socioeconomic_proxies_immutable": True,
+            },
+            "run": {"notes_suffix": "ablation=taxonomy; taxonomy_n_classes=3; variant=conservative"},
         }),
     ]
 
@@ -124,7 +148,7 @@ def _grid_method():
 
 # Cheap-first ordering: partial completion still produces useful output.
 ABLATIONS: List[Dict] = [
-    {"name": "taxonomy", "needs_taxonomy_flag": True,  "grid_fn": _grid_taxonomy, "est_min": 20},
+    {"name": "taxonomy", "needs_taxonomy_flag": True,  "grid_fn": _grid_taxonomy, "est_min": 30},
     {"name": "class",    "needs_taxonomy_flag": True,  "grid_fn": _grid_class,    "est_min": 30},
     {"name": "n_cf",     "needs_taxonomy_flag": False, "grid_fn": _grid_n_cf,     "est_min": 40},
     {"name": "seed",     "needs_taxonomy_flag": False, "grid_fn": _grid_seed,     "est_min": 50},
@@ -132,7 +156,40 @@ ABLATIONS: List[Dict] = [
 ]
 
 
-def _safe_run_ablation(spec: Dict, taxonomy_ok: bool) -> Dict:
+# ──────────────────────────────────────────────────────────────────────
+# Smoke-mode helpers (v4)
+# ──────────────────────────────────────────────────────────────────────
+def _inject_smoke_override(grid):
+    """Inject evaluate.n_test_instances=20 into each cell's overrides.
+
+    Deep-merges with the cell's existing overrides — does NOT replace any
+    other `evaluate.*` keys that were already set (e.g. class grid's
+    risk_threshold_min would survive even if smoke ran the class ablation).
+    """
+    out = []
+    for name, ov in grid:
+        ov_new = dict(ov)
+        ev_merged = dict(ov_new.get("evaluate", {}))
+        ev_merged["n_test_instances"] = 20
+        ov_new["evaluate"] = ev_merged
+        out.append((name, ov_new))
+    return out
+
+
+def _clean_archive():
+    """Wipe outputs/_ablation_archive/. Prints summary."""
+    if ARCHIVE_ROOT.exists():
+        n_cells = sum(1 for p in ARCHIVE_ROOT.iterdir() if p.is_dir())
+        shutil.rmtree(ARCHIVE_ROOT)
+        print(f"[run_ablation_all] cleaned archive: removed {n_cells} cell dir(s)")
+    else:
+        print(f"[run_ablation_all] no archive to clean ({ARCHIVE_ROOT} doesn't exist)")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Per-ablation dispatch + aggregate
+# ──────────────────────────────────────────────────────────────────────
+def _safe_run_ablation(spec: Dict, taxonomy_ok: bool, smoke: bool = False) -> Dict:
     """Run one ablation grid. Returns status dict with name + outcome + elapsed."""
     name = spec["name"]
     if spec["needs_taxonomy_flag"] and not taxonomy_ok:
@@ -142,11 +199,15 @@ def _safe_run_ablation(spec: Dict, taxonomy_ok: bool) -> Dict:
 
     print()
     print("█" * 70)
-    print(f"█  ABLATION: {name.upper()}  (est. ~{spec['est_min']} min)")
+    label = f"{name.upper()} [SMOKE]" if smoke else name.upper()
+    print(f"█  ABLATION: {label}  (est. ~{spec['est_min']} min)")
     print("█" * 70)
     t0 = time.time()
     try:
-        run_grid(name, spec["grid_fn"]())
+        grid = spec["grid_fn"]()
+        if smoke:
+            grid = _inject_smoke_override(grid)
+        run_grid(name, grid)
         elapsed_min = (time.time() - t0) / 60
         print(f"\n[run_ablation_all] ✓ {name} complete in {elapsed_min:.1f} min")
         return {"name": name, "status": "ok", "elapsed_min": elapsed_min}
@@ -169,54 +230,107 @@ def _safe_aggregate(name: str) -> bool:
         return False
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Main
+# ──────────────────────────────────────────────────────────────────────
+def _parse_args():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument(
+        "--smoke", action="store_true",
+        help="Quick 5-10 min sanity run: taxonomy ablation only (2 cells), n_test_instances=20.",
+    )
+    p.add_argument(
+        "--clean", action="store_true",
+        help="Wipe outputs/_ablation_archive/ before running.",
+    )
+    return p.parse_args()
+
+
 if __name__ == "__main__":
+    args = _parse_args()
     t_start = time.time()
     taxonomy_ok = _taxonomy_flag_available()
 
+    if args.clean:
+        _clean_archive()
+
+    # Select which ablations to run: full = all 5; smoke = taxonomy only
+    if args.smoke:
+        ablations = [s for s in ABLATIONS if s["name"] == "taxonomy"]
+        mode_banner = "SMOKE TEST (taxonomy only, n_test_instances=20)"
+        est_total = "~5-10"
+    else:
+        ablations = list(ABLATIONS)
+        mode_banner = "FULL RUN"
+        est_total = f"~{sum(s['est_min'] for s in ablations if s['needs_taxonomy_flag'] is False or taxonomy_ok)}"
+
     print("█" * 70)
-    print("█  run_ablation_all.py — Master Ablation Wrapper")
+    print(f"█  run_ablation_all.py — Master Ablation Wrapper [{mode_banner}]")
     print("█" * 70)
-    print(f"  Taxonomy disable flag: {'✓ available' if taxonomy_ok else '✗ unavailable — ablation 4+5 will skip'}")
-    print(f"  Estimated total wall-clock: ~{sum(s['est_min'] for s in ABLATIONS if s['needs_taxonomy_flag'] is False or taxonomy_ok)} min")
-    print(f"  Output: outputs/run_<timestamp>.{{log,json,csv}} per cell + outputs/ablation_<type>_table.csv per ablation")
+    print(f"  Taxonomy disable flag: {'✓ available' if taxonomy_ok else '✗ unavailable — taxonomy/class will skip'}")
+    print(f"  Estimated total wall-clock: {est_total} min")
+    print(f"  Output: outputs/_ablation_archive/<cell>/ + outputs/ablation_<type>_table.csv")
     print()
     print(f"  Execution order (cheap-first):")
-    for i, spec in enumerate(ABLATIONS, start=1):
+    for i, spec in enumerate(ablations, start=1):
         will_skip = spec["needs_taxonomy_flag"] and not taxonomy_ok
         marker = "SKIP" if will_skip else f"~{spec['est_min']} min"
         print(f"    {i}. {spec['name']:<10} ({marker})")
     print()
 
     results = []
-    for spec in ABLATIONS:
-        results.append(_safe_run_ablation(spec, taxonomy_ok))
+    for spec in ablations:
+        results.append(_safe_run_ablation(spec, taxonomy_ok, smoke=args.smoke))
 
     print()
     print("█" * 70)
     print("█  AGGREGATING TABLES")
     print("█" * 70)
+    aggregate_ok: Dict[str, bool] = {}
     for r in results:
         if r["status"] == "ok":
             print(f"\n[run_ablation_all] Aggregating {r['name']} table...")
-            _safe_aggregate(r["name"])
+            aggregate_ok[r["name"]] = _safe_aggregate(r["name"])
 
     total_elapsed_min = (time.time() - t_start) / 60
     print()
     print("█" * 70)
-    print("█  FINAL SUMMARY")
+    print(f"█  FINAL SUMMARY [{mode_banner}]")
     print("█" * 70)
     print(f"  Total wall-clock: {total_elapsed_min:.1f} min")
     print()
-    print(f"  {'Ablation':<12} {'Status':<22} {'Wall-clock':>12}")
-    print(f"  {'-' * 12} {'-' * 22} {'-' * 12}")
+    print(f"  {'Ablation':<12} {'Run status':<22} {'Wall-clock':>12}  {'Aggregator':>12}")
+    print(f"  {'-' * 12} {'-' * 22} {'-' * 12}  {'-' * 12}")
     for r in results:
-        status_str = {"ok": "✓ complete", "failed": "✗ failed", "skipped_no_taxonomy_flag": "○ skipped (no taxonomy flag)"}[r["status"]]
+        status_str = {"ok": "✓ complete", "failed": "✗ failed", "skipped_no_taxonomy_flag": "○ skipped (no flag)"}[r["status"]]
         elapsed_str = f"{r['elapsed_min']:.1f} min" if r["elapsed_min"] > 0 else "—"
-        print(f"  {r['name']:<12} {status_str:<22} {elapsed_str:>12}")
+        agg_str = "✓ table built" if aggregate_ok.get(r["name"]) else ("✗ no table" if r["status"] == "ok" else "—")
+        print(f"  {r['name']:<12} {status_str:<22} {elapsed_str:>12}  {agg_str:>12}")
     print()
     print("  Output tables:")
     for r in results:
-        if r["status"] == "ok":
+        if aggregate_ok.get(r["name"]):
             print(f"    outputs/ablation_{r['name']}_table.csv")
     print()
-    print("[run_ablation_all] Done. Ready to integrate vào main_vi v7+ §4.5.x.")
+    print("  Archived cells:")
+    if ARCHIVE_ROOT.exists():
+        for cell_dir in sorted(ARCHIVE_ROOT.iterdir()):
+            if cell_dir.is_dir():
+                print(f"    outputs/_ablation_archive/{cell_dir.name}/")
+    print()
+
+    if args.smoke:
+        # Smoke-test pass/fail summary
+        all_ok = (
+            len(results) > 0
+            and all(r["status"] == "ok" for r in results)
+            and all(aggregate_ok.get(r["name"]) for r in results)
+        )
+        if all_ok:
+            print("[SMOKE] ✓ PASS — pipeline + snapshot + aggregator all working.")
+            print("[SMOKE]   You can now run the full ablation: `python run_ablation_all.py`")
+        else:
+            print("[SMOKE] ✗ FAIL — fix issues above before committing to the full run.")
+            sys.exit(1)
+    else:
+        print("[run_ablation_all] Done. Ready to integrate vào main_vi v7+ §4.5.x.")

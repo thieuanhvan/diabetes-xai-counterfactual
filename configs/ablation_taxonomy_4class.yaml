@@ -30,11 +30,12 @@ dice:
   diversity_weight: 1.0
   per_query: true
 evaluate:
-  n_test_instances: 200
+  n_test_instances: 20
   plausibility_neighbors: 50
   compare_modes: true
 taxonomy:
   conditional_class_disabled: true
+  socioeconomic_proxies_immutable: false
 run:
-  notes_suffix: taxonomy_n_classes=4
+  notes_suffix: ablation=taxonomy; taxonomy_n_classes=4
   is_scratch: false

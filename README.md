@@ -6,10 +6,10 @@ Counterfactual explanations with actionability constraints for type-2 diabetes r
 
 Generates counterfactual explanations (CFs) for high-risk patients in BRFSS 2021, using a 5-class intervention-direction taxonomy that encodes clinical actionability semantics without requiring a full structural causal model. Compares two CF generation modes:
 
-- **Global** mode — DiCE with `features_to_vary='all'` (baseline).
-- **Per-query** mode — taxonomy-derived `features_to_vary` + `permitted_range` per patient.
+- **Global** mode — DiCE with a single `features_to_vary` list applied to every query. The list already excludes four immutable features (Age, Sex, prior Stroke, prior HeartDiseaseorAttack), so the comparison isolates the directional refinement from the standard immutable exclusion present in current CF tooling.
+- **Per-query** mode — taxonomy-derived `features_to_vary` + `permitted_range` per patient, layered on the same immutable exclusion.
 
-Per-query mode improves actionability score from 0.666 → 0.988 (+48.5% relative) with zero counter-clinical and zero immutable-feature violations.
+Per-query mode improves actionability score from 0.666 → 0.988 (+48.5% relative) with zero wrong-direction and zero immutable-feature violations on BRFSS 2021.
 
 ## Quick start
 
@@ -24,7 +24,7 @@ source .venv/bin/activate          # Linux/macOS
 pip install -r requirements.txt
 ```
 
-Place the BRFSS 2021 CSV at `data/brfss_2021.csv` (schema: 21 features + `Diabetes_binary` target, n=236,378). The cleaning script is in `thieuanhvan/brfss-diabetes` (separate sister repo).
+Place the BRFSS 2021 CSV at `data/brfss_2021.csv` (schema: 21 features + `Diabetes_binary` target, n=236,378). See `data/README.md` for acquisition details. The cleaning toolkit lives in the separate sister repository `thieuanhvan/brfss-diabetes`.
 
 ## Reproduce the baseline run
 
@@ -32,19 +32,21 @@ Place the BRFSS 2021 CSV at `data/brfss_2021.csv` (schema: 21 features + `Diabet
 python run_main.py
 ```
 
-Generates `outputs/run_<YYYYMMDD_HHMM>.{log,json}` plus `_cf_metrics.csv`. After the pipeline, `make_figures.py` and `topk_violations.py` run automatically (best-effort; pipeline outputs are valid even if these fail).
+Generates `outputs/run_<YYYYMMDD_HHMM>.{log,json}` plus `comparison.csv`, `per_feature.csv`, `global_cf_metrics.csv`, `perquery_cf_metrics.csv`. After the pipeline, `make_figures.py` and `topk_violations.py` run automatically (best-effort; pipeline outputs are valid even if these fail).
 
 Expected wall-clock: ~10 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
 
 Expected key metrics (deterministic with `seed=42`):
 
-| Metric | Value |
-|---|---|
-| Classifier AUC (test) | 0.8233 |
-| Validity (per-query) | 0.808 |
-| Actionability score (per-query) | 0.988 |
-| Wrong-direction violations | 0.000 |
-| Immutable violations | 0.000 |
+| Metric | Global | Per-query |
+|---|---|---|
+| Classifier AUC (test) | 0.8233 | 0.8233 |
+| Validity | 0.752 | 0.808 |
+| Actionability score | 0.666 | 0.988 |
+| Wrong-direction violations | 0.435 | 0.000 |
+| Immutable violations | 0.000 | 0.000 |
+
+See `REPRODUCIBILITY.md` for the full expected-output table and verification commands.
 
 ## Reproduce the ablation studies
 
@@ -52,48 +54,46 @@ Expected key metrics (deterministic with `seed=42`):
 python run_ablation_all.py
 ```
 
-Runs all 5 ablation grids sequentially (~3 hours total compute):
+Runs all 5 ablation grids sequentially in cheap-first order (~6 hours total compute on reference hardware):
 
-1. **Multi-seed variance** — 5 seeds `{42, 123, 2024, 7, 31337}`
-2. **Method comparison** — `random` / `genetic` / `kdtree`
+1. **Taxonomy granularity** — 5-class vs 4-class collapsed
+2. **Class-balance / risk threshold cohort** — `≥ 0.0` / `0.5` / `0.7`
 3. **n_counterfactuals sensitivity** — `n ∈ {1, 3, 5, 10}`
-4. **Class-balance / risk threshold cohort** — `≥ 0.0` / `0.5` / `0.7`
-5. **Taxonomy granularity** — 5-class vs 4-class collapsed
+4. **Multi-seed variance** — 5 seeds `{42, 123, 2024, 7, 31337}`
+5. **Method comparison** — `random` / `genetic` / `kdtree`
 
-Aggregate results into comparison tables:
+Aggregate the resulting per-cell runs into comparison tables:
 
 ```bash
-python -m ablation.aggregate seed
-python -m ablation.aggregate method
-python -m ablation.aggregate n_cf
-python -m ablation.aggregate class
-python -m ablation.aggregate taxonomy
+python run_ablation_aggregate.py
 ```
 
-Each command writes `outputs/ablation_<type>_table.csv` summarizing the corresponding ablation. The aggregator filters runs via the `ablation=<type>` marker in `notes_suffix` (set by `run_ablation_all.py`) with a fallback dedup-by-latest path for runs predating the marker convention.
+This wrapper invokes the 5 aggregations in cheap-first order and writes `outputs/ablation_<type>_table.csv` per ablation. The aggregator filters runs via the `ablation=<type>` marker in `notes_suffix` with a fallback dedup-by-latest path for runs predating the marker convention.
+
+(Equivalent manual invocation: `python -m ablation.aggregate <type>` per ablation type, in any order.)
 
 ## Repository layout
 
 ```
 diabetes-xai-counterfactual/
-├── run_main.py                    # baseline + analysis wrapper (§11.5)
-├── run_ablation_all.py            # master ablation wrapper (§11.5)
-├── run_method_kdtree.py           # one-shot kdtree rerun (post dtype fix)
+├── run_main.py                    # baseline + analysis chained
+├── run_ablation_all.py            # master ablation wrapper, 5 grids
+├── run_ablation_aggregate.py      # aggregate 5 ablation tables
 ├── requirements.txt               # pinned versions for reproducibility
 ├── configs/default.yaml           # pipeline config (deterministic, seed=42)
-├── data/                          # BRFSS CSV (gitignored, see brfss-diabetes repo)
+├── data/                          # BRFSS CSV location (gitignored; see data/README.md)
 ├── src/
 │   ├── pipelines/
 │   │   ├── data/loader.py         # BRFSS 21-feature schema
 │   │   ├── preprocessing/         # stratified 80/20 + StandardScaler
-│   │   ├── models/xgb_train.py    # XGBoost matching P2 baseline
+│   │   ├── models/xgb_train.py    # XGBoost
 │   │   ├── counterfactual/
 │   │   │   ├── feature_taxonomy.py  # 5-class taxonomy
 │   │   │   ├── actionability.py     # actionability score formula
 │   │   │   └── dice_runner.py       # DiCE wrapper + kdtree dtype workaround
 │   │   ├── evaluate/              # CF metrics + per-feature breakdown
 │   │   └── main.py                # orchestrator
-│   └── utils/                     # logger (§11.4), seed (§11.5), hardware (§11.6)
+│   └── utils/                     # logger, seed, hardware capture
 ├── analysis/
 │   ├── make_figures.py            # figures from comparison.csv
 │   ├── comparison_metrics.py      # global vs per-query Δ
@@ -103,7 +103,7 @@ diabetes-xai-counterfactual/
 │   ├── core.py                    # grid runner
 │   └── aggregate.py               # builds ablation_*_table.csv
 ├── tests/                         # taxonomy + per-feature unit tests
-└── outputs/                       # run artifacts (§11.4 sidecar JSON + CSV + log)
+└── outputs/                       # run artifacts (sidecar JSON + CSV + log)
 ```
 
 ## Known issues
@@ -121,14 +121,16 @@ Upstream issue: `dice-ml` GitHub #423 / #445 (not yet patched as of v0.12).
 
 ## Dataset
 
-BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence). Cleaning toolkit lives in the separate repository `thieuanhvan/brfss-diabetes` (private during P2 review window, expected public 2026 Q3 after P2 acceptance). Schema mirrors the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target.
+BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence). The cleaned slice used here mirrors the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Cleaning toolkit lives in the separate repository `thieuanhvan/brfss-diabetes` (private during peer review; will be released alongside this paper's acceptance). For reviewer access during review, the cleaned CSV can be supplied as a journal supplement on request through the submission portal.
+
+See `data/README.md` for full acquisition instructions and `REPRODUCIBILITY.md` for the runtime environment specification.
 
 ## Citation
 
 ```bibtex
 @article{thieu2026p4,
   title  = {Per-Query Actionability Taxonomy for Counterfactual Explanations in Diabetes Risk Prediction},
-  author = {Thieu, Anh Van},
+  author = {Van Thieu},
   journal= {International Journal of Medical Informatics},
   year   = {2026},
   note   = {Manuscript in preparation, target submission 01/06/2026}
@@ -141,4 +143,4 @@ Code: MIT (planned, finalized at publication). Data redistribution governed by C
 
 ## Contact
 
-Thiều Anh Vân — thieuanhvan@gmail.com — ORCID: 0009-0003-9637-0195
+Van Thieu — thieuanhvan@gmail.com — ORCID: 0009-0003-9637-0195

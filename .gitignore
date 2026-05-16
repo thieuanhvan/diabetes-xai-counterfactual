@@ -18,10 +18,13 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data (never commit)
-data/raw/
-data/*.csv
-data/*.parquet
+# Data: BRFSS CSV/parquet stays out of code repo
+# - Acquisition documented in data/README.md (committed)
+# - Raw data lives in sister Kaggle repo `thieuanhvan/brfss-diabetes`
+# - Reviewer access via journal supplement on request
+data/*
+!data/.gitkeep
+!data/README.md
 
 # Run artifacts per §11.4 (16/05/2026 convention):
 # - logs/ holds log + config JSON sidecar, preserved per run (audit trail).
