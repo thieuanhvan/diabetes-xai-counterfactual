@@ -1,0 +1,19 @@
+2026-05-17 08:49:35,159 | INFO | === Run started: run_20260517_0849 (scratch=False) ===
+2026-05-17 08:49:35,159 | INFO | Log:    C:\Projects\uit\diabetes-xai-counterfactual\logs\run_20260517_0849.log
+2026-05-17 08:49:35,159 | INFO | Config: C:\Projects\uit\diabetes-xai-counterfactual\logs\run_20260517_0849.json
+2026-05-17 08:49:35,159 | INFO |       [taxonomy] CONDITIONAL class enabled → 5-class taxonomy (default)
+2026-05-17 08:49:35,159 | INFO | [Load Dataset]
+2026-05-17 08:49:35,553 | INFO |       shape: X=(236378, 21), y=(236378,), prevalence=0.1420
+2026-05-17 08:49:35,553 | INFO | [Train XGBoost]
+2026-05-17 08:49:40,062 | INFO |       test AUC: 0.8233
+2026-05-17 08:49:40,062 | INFO |       (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)
+2026-05-17 08:49:40,063 | INFO | [CF Generation] compare_modes=True
+2026-05-17 08:49:40,063 | INFO |       risk_threshold_min=0.50 → eligible pool: 1798/47276 test patients
+2026-05-17 08:49:40,064 | INFO |       n_queries (high-risk): 200
+2026-05-17 08:49:40,064 | INFO | [Global Mode] features_to_vary='all', no per-query constraints
+2026-05-17 08:49:40,064 | INFO |   [global] generating CFs (per_query=False)...
+2026-05-17 08:53:34,465 | INFO |   [global] scoring CFs...
+2026-05-17 08:53:46,042 | INFO |   [global] processed 200/200 (skipped 0)
+2026-05-17 08:53:46,076 | INFO |       Global CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\global_cf_metrics.csv
+2026-05-17 08:53:46,076 | INFO | [Per-Query Mode] taxonomy-constrained
+2026-05-17 08:53:46,076 | INFO |   [per_query] generating CFs (per_query=True)...

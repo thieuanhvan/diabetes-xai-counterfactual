@@ -1,0 +1,24 @@
+{
+  "cell_name": "method_random",
+  "run_id": "run_20260517_1340",
+  "ablation_type": "method",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "random",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.7520|pq=0.8080]",
+    "actionability[g": "0.6655|pq=0.9880]",
+    "AUC": "0.8233",
+    "ablation": "method",
+    "method_value": "random"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T13:49:11.936442+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}

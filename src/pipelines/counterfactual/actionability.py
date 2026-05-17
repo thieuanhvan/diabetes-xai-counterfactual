@@ -15,6 +15,7 @@ import pandas as pd
 from src.pipelines.counterfactual.feature_taxonomy import (
     FEATURE_TAXONOMY,
     Mutability,
+    _effective_mutability,
 )
 
 
@@ -23,6 +24,15 @@ def actionability_score(
     cf: pd.Series,
 ) -> Dict[str, float]:
     """Score a single CF against actionability constraints.
+
+    Uses the effective mutability of each feature (after ablation-flag
+    collapses applied by _effective_mutability) so the score remains
+    consistent with the constraint set DiCE was given. Without this,
+    the 4-class collapsed variant would score DiffWalk changes as
+    CONDITIONAL violations even though the taxonomy treats them as
+    MONOTONIC_DOWN; the conservative SE-proxy variant would similarly
+    score Income/Education/AnyHealthcare changes against the wrong
+    mutability class.
 
     Returns:
         {
@@ -45,15 +55,16 @@ def actionability_score(
         if delta == 0:
             continue
         total_changes += 1
+        eff = _effective_mutability(spec)
 
-        if spec.mutability == Mutability.IMMUTABLE:
+        if eff == Mutability.IMMUTABLE:
             immutable_v += 1
-        elif spec.mutability == Mutability.CONDITIONAL:
+        elif eff == Mutability.CONDITIONAL:
             # CF shouldn't act on conditional features directly
             wrong_dir_v += 1
-        elif spec.mutability == Mutability.MONOTONIC_UP and delta < 0:
+        elif eff == Mutability.MONOTONIC_UP and delta < 0:
             wrong_dir_v += 1
-        elif spec.mutability == Mutability.MONOTONIC_DOWN and delta > 0:
+        elif eff == Mutability.MONOTONIC_DOWN and delta > 0:
             wrong_dir_v += 1
         else:
             actionable_c += 1

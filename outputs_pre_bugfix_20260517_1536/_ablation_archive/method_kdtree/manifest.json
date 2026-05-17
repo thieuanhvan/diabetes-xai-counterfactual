@@ -1,0 +1,24 @@
+{
+  "cell_name": "method_kdtree",
+  "run_id": "run_20260517_1451",
+  "ablation_type": "method",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "kdtree",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.0500|pq=0.0000]",
+    "actionability[g": "0.6180|pq=nan]",
+    "AUC": "0.8233",
+    "ablation": "method",
+    "method_value": "kdtree"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T15:21:55.007843+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}

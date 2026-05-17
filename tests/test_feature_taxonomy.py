@@ -9,6 +9,8 @@ from src.pipelines.counterfactual.feature_taxonomy import (
     get_actionable_features,
     get_immutable_features,
     get_features_by_mutability,
+    set_conditional_disabled,
+    set_socioeconomic_proxies_immutable,
 )
 
 
@@ -72,3 +74,73 @@ def test_actionability_score_rewards_correct_direction():
     assert score["wrong_direction_violations"] == 0
     assert score["actionable_changes"] == 2
     assert score["score"] == 1.0
+
+
+# --------------------------------------------------------------------
+# Tests that the actionability score respects ablation-flag collapses.
+# These guard against the bug where actionability_score used raw
+# spec.mutability instead of _effective_mutability, causing scoring
+# inconsistency with the constraint set under 4-class and conservative
+# SE-proxy variants.
+# --------------------------------------------------------------------
+
+
+@pytest.fixture
+def reset_flags():
+    """Reset both ablation flags after each test that touches them."""
+    yield
+    set_conditional_disabled(False)
+    set_socioeconomic_proxies_immutable(False)
+
+
+def test_actionability_diffwalk_default_5class_is_conditional_violation(reset_flags):
+    # Default 5-class: DiffWalk is CONDITIONAL -> any change counts as wrong_dir
+    query = pd.Series({"DiffWalk": 1, "BMI": 28})
+    cf = pd.Series({"DiffWalk": 0, "BMI": 25})
+    score = actionability_score(query, cf)
+    assert score["wrong_direction_violations"] == 1, "DiffWalk change should violate under 5-class"
+
+
+def test_actionability_diffwalk_4class_collapsed_to_monotonic_down(reset_flags):
+    # 4-class: DiffWalk -> MONOTONIC_DOWN; 1->0 is correct direction
+    set_conditional_disabled(True)
+    query = pd.Series({"DiffWalk": 1, "BMI": 28})
+    cf = pd.Series({"DiffWalk": 0, "BMI": 25})
+    score = actionability_score(query, cf)
+    assert score["wrong_direction_violations"] == 0, "DiffWalk 1->0 must be actionable under 4-class"
+    assert score["actionable_changes"] == 2
+
+
+def test_actionability_diffwalk_4class_wrong_direction_still_caught(reset_flags):
+    # 4-class: DiffWalk MONOTONIC_DOWN; 0->1 must remain a wrong-dir violation
+    set_conditional_disabled(True)
+    query = pd.Series({"DiffWalk": 0, "BMI": 28})
+    cf = pd.Series({"DiffWalk": 1, "BMI": 25})
+    score = actionability_score(query, cf)
+    assert score["wrong_direction_violations"] == 1, "DiffWalk 0->1 must violate under 4-class"
+
+
+def test_actionability_se_proxy_conservative_treats_income_as_immutable(reset_flags):
+    # Conservative SE-proxy: Income MONOTONIC_UP -> IMMUTABLE
+    # Any change must register as immutable_violations (not actionable_changes)
+    set_socioeconomic_proxies_immutable(True)
+    query = pd.Series({"Income": 3, "BMI": 28})
+    cf = pd.Series({"Income": 5, "BMI": 25})
+    score = actionability_score(query, cf)
+    assert score["immutable_violations"] == 1, "Income change must be immutable violation under conservative"
+    assert score["actionable_changes"] == 1, "Only BMI change should be actionable"
+
+
+def test_actionability_education_conservative_not_double_counted(reset_flags):
+    # Without flag (default): Education MONOTONIC_UP, 3->5 is actionable
+    query = pd.Series({"Education": 3, "BMI": 28})
+    cf = pd.Series({"Education": 5, "BMI": 25})
+    score_default = actionability_score(query, cf)
+    assert score_default["actionable_changes"] == 2
+    assert score_default["immutable_violations"] == 0
+
+    # With conservative flag: Education -> IMMUTABLE, same change becomes immutable violation
+    set_socioeconomic_proxies_immutable(True)
+    score_cons = actionability_score(query, cf)
+    assert score_cons["immutable_violations"] == 1
+    assert score_cons["actionable_changes"] == 1

@@ -34,4 +34,5 @@ evaluate:
   plausibility_neighbors: 50
   compare_modes: true
 run:
+  notes_suffix: ablation=seed; seed_value=123
   is_scratch: false

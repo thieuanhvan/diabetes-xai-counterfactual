@@ -35,5 +35,5 @@ evaluate:
   compare_modes: true
   risk_threshold_min: 0.5
 run:
-  notes_suffix: class_threshold=0.5
+  notes_suffix: ablation=class; class_threshold=0.5
   is_scratch: false

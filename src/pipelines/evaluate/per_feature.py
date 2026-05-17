@@ -16,7 +16,11 @@ from typing import Dict, List
 
 import pandas as pd
 
-from src.pipelines.counterfactual.feature_taxonomy import FEATURE_TAXONOMY, Mutability
+from src.pipelines.counterfactual.feature_taxonomy import (
+    FEATURE_TAXONOMY,
+    Mutability,
+    _effective_mutability,
+)
 
 
 def per_feature_breakdown_one_query(
@@ -24,6 +28,11 @@ def per_feature_breakdown_one_query(
     cfs_df: pd.DataFrame,
 ) -> Dict[str, Dict[str, float]]:
     """Per-feature stats for a single (query, set-of-CFs) pair.
+
+    Uses the effective mutability of each feature (after ablation-flag
+    collapses) so the per-feature scoring stays consistent with the
+    aggregate actionability_score under 4-class and conservative SE-proxy
+    variants.
 
     Returns: {feature: {n_cf_changed, n_actionable, n_wrong_dir, n_immutable, sum_delta, mean_delta_signed}}
     """
@@ -37,19 +46,20 @@ def per_feature_breakdown_one_query(
         n_immutable = 0
         sum_delta = 0.0
         q_val = float(query[feature])
+        eff = _effective_mutability(spec)
         for _, cf_row in cfs_df.iterrows():
             delta = float(cf_row[feature]) - q_val
             if delta == 0:
                 continue
             n_cf_changed += 1
             sum_delta += delta
-            if spec.mutability == Mutability.IMMUTABLE:
+            if eff == Mutability.IMMUTABLE:
                 n_immutable += 1
-            elif spec.mutability == Mutability.CONDITIONAL:
+            elif eff == Mutability.CONDITIONAL:
                 n_wrong_dir += 1
-            elif spec.mutability == Mutability.MONOTONIC_UP and delta < 0:
+            elif eff == Mutability.MONOTONIC_UP and delta < 0:
                 n_wrong_dir += 1
-            elif spec.mutability == Mutability.MONOTONIC_DOWN and delta > 0:
+            elif eff == Mutability.MONOTONIC_DOWN and delta > 0:
                 n_wrong_dir += 1
             else:
                 n_actionable += 1
@@ -108,7 +118,7 @@ def aggregate_per_feature(
         n_changes = t["n_total_cf_changes"]
         rows.append({
             "feature": feature,
-            "taxonomy_class": spec.mutability.value,
+            "taxonomy_class": _effective_mutability(spec).value,
             "mode": mode_label,
             "n_queries_with_change": int(t["n_queries_with_change"]),
             "n_total_cf_changes": int(n_changes),

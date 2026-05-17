@@ -1,0 +1,102 @@
+{
+  "run_id": "run_20260517_0841",
+  "is_scratch": false,
+  "runtime": {
+    "python": "3.12.10",
+    "os": "Windows",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "hardware": {
+      "cpu": {
+        "model": "Intel(R) Core(TM) i7-1068NG7 CPU @ 2.30GHz",
+        "arch": "AMD64"
+      },
+      "cpu_count": 8,
+      "ram_gb": 31.81,
+      "gpu": null
+    }
+  },
+  "libraries": {
+    "numpy": "1.26.4",
+    "pandas": "3.0.3",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.8.0",
+    "xgboost": "3.2.0",
+    "shap": "0.49.1",
+    "dice-ml": "0.12",
+    "pyyaml": "6.0.3",
+    "tqdm": "4.67.3",
+    "joblib": "1.5.3",
+    "psutil": "7.2.2"
+  },
+  "seeds": {
+    "global": 42,
+    "xgboost": 42,
+    "sample": null
+  },
+  "dataset": {
+    "name": "BRFSS_2021",
+    "csv_path": "data/cdc_brfss_diabetes_2021.csv",
+    "rows_used": 236378,
+    "sample_n": null,
+    "features": 21,
+    "target": "Diabetes_binary",
+    "prevalence": 0.14200983171022685
+  },
+  "hyperparameters": {
+    "split": {
+      "test_size": 0.2,
+      "stratify": true
+    },
+    "xgboost": {
+      "n_estimators": 500,
+      "max_depth": 6,
+      "learning_rate": 0.05,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "min_child_weight": 1,
+      "reg_lambda": 1.0,
+      "tree_method": "hist",
+      "eval_metric": "auc",
+      "random_state": 42,
+      "n_jobs": -1
+    },
+    "dice": {
+      "method": "random",
+      "n_counterfactuals": 5,
+      "desired_class": 0,
+      "proximity_weight": 0.5,
+      "diversity_weight": 1.0,
+      "per_query": true
+    },
+    "evaluate": {
+      "n_test_instances": 200,
+      "plausibility_neighbors": 50,
+      "compare_modes": true,
+      "risk_threshold_min": 0.0
+    },
+    "taxonomy": {}
+  },
+  "classifier_metrics": {
+    "n_test": 47276,
+    "prevalence": 0.14201709112446062,
+    "TP": 1021,
+    "FP": 777,
+    "TN": 39785,
+    "FN": 5693,
+    "AUC_ROC": 0.823318976585703,
+    "Accuracy": 0.8631440900245367,
+    "Precision": 0.567853170189099,
+    "Recall_Sensitivity": 0.15207030086386655,
+    "Specificity": 0.9808441398353138,
+    "F1": 0.23989661654135339,
+    "Balanced_Accuracy": 0.5664572203495902,
+    "MCC": 0.2425643623826578,
+    "threshold": 0.5
+  },
+  "git_commit": "921eb0e",
+  "timestamps": {
+    "start": "2026-05-17T08:41:31.035369+07:00",
+    "end": "2026-05-17T08:49:35.129809+07:00"
+  },
+  "notes": "compare_modes=True; method=random; sample_n=None; n_queries=200; validity[g=0.7520|pq=0.8080]; actionability[g=0.6655|pq=0.9880]; AUC=0.8233; ablation=class; class_threshold=0.0"
+}

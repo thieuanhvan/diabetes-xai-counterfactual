@@ -8,7 +8,12 @@ from src.pipelines.evaluate.per_feature import (
     aggregate_per_feature,
     per_feature_breakdown_one_query,
 )
-from src.pipelines.counterfactual.feature_taxonomy import FEATURE_TAXONOMY, Mutability
+from src.pipelines.counterfactual.feature_taxonomy import (
+    FEATURE_TAXONOMY,
+    Mutability,
+    set_conditional_disabled,
+    set_socioeconomic_proxies_immutable,
+)
 
 
 def _make_query():
@@ -107,3 +112,74 @@ def test_aggregate_handles_none_breakdowns():
     bmi = agg[agg["feature"] == "BMI"].iloc[0]
     assert bmi["n_total_cf_changes"] == 1
     assert bmi["n_queries_with_change"] == 1
+
+
+# --------------------------------------------------------------------
+# Ablation-flag-aware scoring tests for per_feature_breakdown_one_query.
+# These guard against the bug where per_feature.py used raw
+# spec.mutability instead of _effective_mutability, causing per-feature
+# CSV to be inconsistent with the aggregate actionability_score under
+# 4-class and conservative SE-proxy variants.
+# --------------------------------------------------------------------
+
+
+@pytest.fixture
+def reset_flags():
+    yield
+    set_conditional_disabled(False)
+    set_socioeconomic_proxies_immutable(False)
+
+
+def test_per_feature_diffwalk_5class_default_is_wrong_dir(reset_flags):
+    # 5-class: DiffWalk CONDITIONAL -> any change is wrong_dir
+    query = _make_query()
+    query["DiffWalk"] = 1
+    cf = query.copy()
+    cf["DiffWalk"] = 0
+    cfs = pd.DataFrame([cf])
+    result = per_feature_breakdown_one_query(query, cfs)
+    assert result["DiffWalk"]["n_wrong_dir"] == 1
+    assert result["DiffWalk"]["n_actionable"] == 0
+
+
+def test_per_feature_diffwalk_4class_collapsed_is_actionable(reset_flags):
+    # 4-class: DiffWalk -> MONOTONIC_DOWN; 1->0 is correct direction
+    set_conditional_disabled(True)
+    query = _make_query()
+    query["DiffWalk"] = 1
+    cf = query.copy()
+    cf["DiffWalk"] = 0
+    cfs = pd.DataFrame([cf])
+    result = per_feature_breakdown_one_query(query, cfs)
+    assert result["DiffWalk"]["n_actionable"] == 1
+    assert result["DiffWalk"]["n_wrong_dir"] == 0
+
+
+def test_per_feature_income_conservative_treated_immutable(reset_flags):
+    # Conservative SE-proxy: Income MONOTONIC_UP -> IMMUTABLE
+    set_socioeconomic_proxies_immutable(True)
+    query = _make_query()
+    query["Income"] = 3
+    cf = query.copy()
+    cf["Income"] = 5
+    cfs = pd.DataFrame([cf])
+    result = per_feature_breakdown_one_query(query, cfs)
+    assert result["Income"]["n_immutable"] == 1
+    assert result["Income"]["n_actionable"] == 0
+    assert result["Income"]["n_wrong_dir"] == 0
+
+
+def test_aggregate_taxonomy_class_reflects_effective_mutability(reset_flags):
+    # Aggregate output's taxonomy_class column should reflect the effective
+    # class (after ablation collapses), not the raw default 5-class label.
+    set_socioeconomic_proxies_immutable(True)
+    query = _make_query()
+    query["Income"] = 3
+    cf = query.copy()
+    cf["Income"] = 5
+    per_q = [per_feature_breakdown_one_query(query, pd.DataFrame([cf]))]
+    agg = aggregate_per_feature(per_q, mode_label="test")
+    income_row = agg[agg["feature"] == "Income"].iloc[0]
+    assert income_row["taxonomy_class"] == "immutable", (
+        f"Income should be labelled 'immutable' under conservative variant, got {income_row['taxonomy_class']}"
+    )

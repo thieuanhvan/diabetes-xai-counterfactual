@@ -34,4 +34,5 @@ evaluate:
   plausibility_neighbors: 50
   compare_modes: true
 run:
+  notes_suffix: ablation=n_cf; n_cf_value=10
   is_scratch: false

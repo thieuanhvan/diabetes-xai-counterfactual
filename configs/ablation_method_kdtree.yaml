@@ -34,4 +34,5 @@ evaluate:
   plausibility_neighbors: 50
   compare_modes: true
 run:
+  notes_suffix: ablation=method; method_value=kdtree
   is_scratch: false
