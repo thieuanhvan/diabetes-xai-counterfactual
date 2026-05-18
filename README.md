@@ -1,6 +1,6 @@
 # diabetes-xai-counterfactual
 
-Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"A Knowledge-Based Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
+Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"A Knowledge-Guided Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
 
 ## What this does
 
@@ -31,7 +31,7 @@ Place the BRFSS 2021 CSV at `data/cdc_brfss_diabetes_2021.csv` (schema: 21 featu
 The metrics reported in the manuscript (Tables 4 and 5, Sections 4.3 and 4.4) reproduce from the frozen reference at:
 
 ```
-outputs/archive/manuscript_v16/
+outputs/archive/manuscript/
 ├── comparison.csv          ← Table 4 (headline comparison)
 ├── global_cf_metrics.csv
 ├── perquery_cf_metrics.csv
@@ -40,7 +40,7 @@ outputs/archive/manuscript_v16/
 └── manifest.json
 ```
 
-Expected key metrics from the authoritative reference (`outputs/archive/manuscript_v16/comparison.csv`, sourced from the `class_general` cell of the ablation grid, run_id `run_20260517_1716`):
+Expected key metrics from the authoritative reference (`outputs/archive/manuscript/comparison.csv`, sourced from the `class_general` cell of the ablation grid, run_id `run_20260517_1716`):
 
 | Metric | Global | Per-query |
 |---|---|---|
@@ -64,7 +64,7 @@ Outputs (scratch space — overwritten on each run):
 
 Expected wall-clock: ~30 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
 
-To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript_v16/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.5.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
+To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.5.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
 
 See `REPRODUCIBILITY.md` for the full expected-output table and verification commands.
 
@@ -125,7 +125,7 @@ diabetes-xai-counterfactual/
 ├── tests/                         # taxonomy + per-feature unit tests
 └── outputs/
     ├── archive/
-    │   └── manuscript_v16/         # frozen reference — manuscript Tables 4 and 5
+    │   └── manuscript/         # frozen reference — manuscript Tables 4 and 5
     ├── _ablation_archive/          # 18 ablation cells (all snapshots from §4.5)
     ├── ablation_*_table.csv        # aggregated ablation summary tables
     └── scratch/                    # working dir — overwritten on each run
@@ -154,7 +154,7 @@ See `data/README.md` for full acquisition instructions and `REPRODUCIBILITY.md` 
 
 ```bibtex
 @unpublished{thieu2026p4,
-  title  = {A Knowledge-Based Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction},
+  title  = {A Knowledge-Guided Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction},
   author = {Van Thieu},
   year   = {2026},
   note   = {Manuscript under peer review}

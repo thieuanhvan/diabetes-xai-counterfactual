@@ -2,7 +2,7 @@
 
 This document specifies the exact environment, data, seeds and expected
 numerical outputs needed to reproduce the results reported in
-*"A Knowledge-Based Constraint Compiler for Actionable Counterfactual
+*"A Knowledge-Guided Constraint Compiler for Actionable Counterfactual
 Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
 
 Companion file `README.md` is the high-level entry point; this file is the
@@ -23,7 +23,7 @@ Expected wall-clock: ≈60 minutes on the reference hardware (Intel Core i7,
 8 logical cores, no GPU). Outputs land in `outputs/scratch/`. Compare the
 numerical values against the "Expected numerical outputs" tables below, or
 diff directly against the frozen authoritative snapshot at
-`outputs/archive/manuscript_v16/`.
+`outputs/archive/manuscript/`.
 
 ## 1. Environment
 
@@ -45,7 +45,7 @@ The full pinned list is in `requirements.txt`. Each
 `outputs/scratch/run_*.json` sidecar records the actual versions present at
 runtime, so a reviewer can verify environment fidelity by diffing the
 sidecar against this table or against
-`outputs/archive/manuscript_v16/config.json`.
+`outputs/archive/manuscript/config.json`.
 
 Operating system tested: Windows 10 (primary author environment). Linux
 and macOS are expected to work; the only OS-dependent code is path
@@ -176,7 +176,7 @@ rerunning.
 
 The authoritative reference run is `run_20260517_1716` (`ablation=class`
 cell `class_general`, the main experimental configuration). Its full output
-set is frozen at `outputs/archive/manuscript_v16/`. Values below are the
+set is frozen at `outputs/archive/manuscript/`. Values below are the
 headline numbers reported in the manuscript. Reproduction should match to
 all displayed decimal places (deterministic pipeline given identical seed
 and pinned versions).
@@ -185,14 +185,14 @@ and pinned versions).
 
 | Quantity | Expected value | Source |
 |---|---|---|
-| Test AUC | **0.8233** | run log line, `outputs/archive/manuscript_v16/config.json` |
+| Test AUC | **0.8233** | run log line, `outputs/archive/manuscript/config.json` |
 | Train/test split sizes | 189,102 / 47,276 | log line |
 | Class prevalence (full) | 0.1420 | log line |
 | Test prevalence | 0.1420 | log line |
 
 ### 6.2 CF metrics — global mode
 
-(from `outputs/archive/manuscript_v16/comparison.csv`, column `global`)
+(from `outputs/archive/manuscript/comparison.csv`, column `global`)
 
 | Quantity | Expected value |
 |---|---|
@@ -207,7 +207,7 @@ and pinned versions).
 
 ### 6.3 CF metrics — per-query mode
 
-(from `outputs/archive/manuscript_v16/comparison.csv`, column `per_query`)
+(from `outputs/archive/manuscript/comparison.csv`, column `per_query`)
 
 | Quantity | Expected value |
 |---|---|
@@ -221,12 +221,12 @@ and pinned versions).
 | Immutable violation rate | 0.000 |
 
 Total CF changes across all features: **1,411 (global) → 1,520 (per-query, +7.7%)**.
-Verify via `outputs/archive/manuscript_v16/per_feature.csv` by summing
+Verify via `outputs/archive/manuscript/per_feature.csv` by summing
 `n_total_cf_changes` per mode.
 
 ### 6.4 Per-feature breakdown (Pattern (a) check)
 
-In `outputs/archive/manuscript_v16/per_feature.csv`, three features should
+In `outputs/archive/manuscript/per_feature.csv`, three features should
 record 100% wrong-direction violations under global mode and 0 changes
 under per-query mode (suppressed by taxonomy):
 
@@ -242,11 +242,11 @@ modes with zero wrong-direction violations under per-query mode.
 ## 7. Verifying reproduction
 
 After running, compare your `outputs/scratch/` against the frozen
-authoritative reference at `outputs/archive/manuscript_v16/`:
+authoritative reference at `outputs/archive/manuscript/`:
 
 ```bash
-diff outputs/scratch/comparison.csv outputs/archive/manuscript_v16/comparison.csv
-diff outputs/scratch/per_feature.csv outputs/archive/manuscript_v16/per_feature.csv
+diff outputs/scratch/comparison.csv outputs/archive/manuscript/comparison.csv
+diff outputs/scratch/per_feature.csv outputs/archive/manuscript/per_feature.csv
 ```
 
 A successful reproduction shows zero diff (deterministic pipeline). The
@@ -283,7 +283,7 @@ The following *would* introduce variation but are guarded against:
 
 **AUC differs from 0.8233.** Diff your run's JSON sidecar
 (`outputs/scratch/run_*.json`) against
-`outputs/archive/manuscript_v16/config.json`. The most common cause is a
+`outputs/archive/manuscript/config.json`. The most common cause is a
 numpy or xgboost version mismatch from a stale virtual environment.
 
 **`KeyError` on column load.** The BRFSS CSV must contain exactly the 22
@@ -310,7 +310,7 @@ is `null` (full dataset) rather than left at a dev value.
 ## 10. Provenance
 
 Authoritative reference run: `run_20260517_1716`. Its frozen snapshot is at
-`outputs/archive/manuscript_v16/`. The accompanying `config.json` records:
+`outputs/archive/manuscript/`. The accompanying `config.json` records:
 
 - Exact library versions present at the time of authoritative-run execution
 - Hardware capture (CPU model, core count, RAM, OS)
