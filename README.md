@@ -1,6 +1,6 @@
 # diabetes-xai-counterfactual
 
-Counterfactual explanations with actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Per-Query Actionability Taxonomy for Counterfactual Explanations in Diabetes Risk Prediction"* (in preparation, target venue: International Journal of Medical Informatics, target submission 01/06/2026).
+Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"A Knowledge-Based Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
 
 ## What this does
 
@@ -24,7 +24,31 @@ source .venv/bin/activate          # Linux/macOS
 pip install -r requirements.txt
 ```
 
-Place the BRFSS 2021 CSV at `data/brfss_2021.csv` (schema: 21 features + `Diabetes_binary` target, n=236,378). See `data/README.md` for acquisition details. The cleaning toolkit lives in the separate sister repository `thieuanhvan/brfss-diabetes`.
+Place the BRFSS 2021 CSV at `data/cdc_brfss_diabetes_2021.csv` (schema: 21 features + `Diabetes_binary` target, n=236,378). See `data/README.md` for acquisition details. The cleaning toolkit lives in the separate sister repository `thieuanhvan/brfss-diabetes`.
+
+## Authoritative results
+
+The metrics reported in the manuscript (Tables 4 and 5, Sections 4.3 and 4.4) reproduce from the frozen reference at:
+
+```
+outputs/archive/manuscript_v16/
+├── comparison.csv          ← Table 4 (headline comparison)
+├── global_cf_metrics.csv
+├── perquery_cf_metrics.csv
+├── per_feature.csv          ← Table 5 (per-feature breakdown)
+├── config.json              ← full runtime/library/seed audit
+└── manifest.json
+```
+
+Expected key metrics from the authoritative reference (`outputs/archive/manuscript_v16/comparison.csv`, sourced from the `class_general` cell of the ablation grid, run_id `run_20260517_1716`):
+
+| Metric | Global | Per-query |
+|---|---|---|
+| Classifier AUC (test) | 0.8233 | 0.8233 |
+| Validity | 0.752 | 0.808 |
+| Actionability score | 0.6655 | 0.9880 |
+| Wrong-direction violations | 0.435 | 0.000 |
+| Immutable violations | 0.000 | 0.000 |
 
 ## Reproduce the baseline run
 
@@ -32,19 +56,15 @@ Place the BRFSS 2021 CSV at `data/brfss_2021.csv` (schema: 21 features + `Diabet
 python run_main.py
 ```
 
-Generates `outputs/run_<YYYYMMDD_HHMM>.{log,json}` plus `comparison.csv`, `per_feature.csv`, `global_cf_metrics.csv`, `perquery_cf_metrics.csv`. After the pipeline, `make_figures.py` and `topk_violations.py` run automatically (best-effort; pipeline outputs are valid even if these fail).
+Outputs (scratch space — overwritten on each run):
 
-Expected wall-clock: ~10 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
+- `outputs/scratch/run_<YYYYMMDD_HHMM>.{log,json}` — sidecar log + config audit trail.
+- `outputs/scratch/{comparison,global_cf_metrics,perquery_cf_metrics,per_feature}.csv` — current run results.
+- `outputs/scratch/fig_*.{png,pdf}` and `topk_violations.{csv,md}` — analysis outputs.
 
-Expected key metrics (deterministic with `seed=42`):
+Expected wall-clock: ~30 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
 
-| Metric | Global | Per-query |
-|---|---|---|
-| Classifier AUC (test) | 0.8233 | 0.8233 |
-| Validity | 0.752 | 0.808 |
-| Actionability score | 0.666 | 0.988 |
-| Wrong-direction violations | 0.435 | 0.000 |
-| Immutable violations | 0.000 | 0.000 |
+To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript_v16/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.5.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
 
 See `REPRODUCIBILITY.md` for the full expected-output table and verification commands.
 
@@ -68,7 +88,7 @@ Aggregate the resulting per-cell runs into comparison tables:
 python run_ablation_aggregate.py
 ```
 
-This wrapper invokes the 5 aggregations in cheap-first order and writes `outputs/ablation_<type>_table.csv` per ablation. The aggregator filters runs via the `ablation=<type>` marker in `notes_suffix` with a fallback dedup-by-latest path for runs predating the marker convention.
+This wrapper invokes the 5 aggregations in cheap-first order and writes `outputs/scratch/ablation_<type>_table.csv` per ablation. The aggregator filters runs via the `ablation=<type>` marker in `notes_suffix` with a fallback dedup-by-latest path for runs predating the marker convention.
 
 (Equivalent manual invocation: `python -m ablation.aggregate <type>` per ablation type, in any order.)
 
@@ -103,7 +123,12 @@ diabetes-xai-counterfactual/
 │   ├── core.py                    # grid runner
 │   └── aggregate.py               # builds ablation_*_table.csv
 ├── tests/                         # taxonomy + per-feature unit tests
-└── outputs/                       # run artifacts (sidecar JSON + CSV + log)
+└── outputs/
+    ├── archive/
+    │   └── manuscript_v16/         # frozen reference — manuscript Tables 4 and 5
+    ├── _ablation_archive/          # 18 ablation cells (all snapshots from §4.5)
+    ├── ablation_*_table.csv        # aggregated ablation summary tables
+    └── scratch/                    # working dir — overwritten on each run
 ```
 
 ## Known issues
@@ -128,18 +153,19 @@ See `data/README.md` for full acquisition instructions and `REPRODUCIBILITY.md` 
 ## Citation
 
 ```bibtex
-@article{thieu2026p4,
-  title  = {Per-Query Actionability Taxonomy for Counterfactual Explanations in Diabetes Risk Prediction},
+@unpublished{thieu2026p4,
+  title  = {A Knowledge-Based Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction},
   author = {Van Thieu},
-  journal= {International Journal of Medical Informatics},
   year   = {2026},
-  note   = {Manuscript in preparation, target submission 01/06/2026}
+  note   = {Manuscript under peer review}
 }
 ```
 
 ## License
 
-Code: MIT (planned, finalized at publication). Data redistribution governed by CDC BRFSS terms of use.
+Source code: MIT (planned, finalized at publication).
+
+BRFSS 2021 microdata are publicly released by the U.S. Centers for Disease Control and Prevention under U.S. federal public-domain terms. The cleaned processed cohort used here is redistributed with full attribution to CDC and remains subject to the CDC public-use terms of the original release; no additional license is asserted over the underlying data.
 
 ## Contact
 

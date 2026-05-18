@@ -1,4 +1,0 @@
-run_id,cell_name,taxonomy_n_classes,variant,validity,actionability,wrong_dir_violations,immutable_violations
-run_20260517_1148,taxonomy_3class_conservative,3,conservative,0.83,0.9840000000000001,0.0,0.0
-run_20260517_1137,taxonomy_4class,4,default,0.805,0.9551666666666668,0.04,0.0
-run_20260517_1128,taxonomy_5class,5,default,0.8079999999999999,0.9880000000000001,0.0,0.0

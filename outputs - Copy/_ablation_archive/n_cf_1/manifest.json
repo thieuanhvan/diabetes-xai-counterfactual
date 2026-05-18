@@ -1,0 +1,24 @@
+{
+  "cell_name": "n_cf_1",
+  "run_id": "run_20260517_1739",
+  "ablation_type": "n_cf",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "random",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.7750|pq=0.7650]",
+    "actionability[g": "0.6750|pq=0.9800]",
+    "AUC": "0.8233",
+    "ablation": "n_cf",
+    "n_cf_value": "1"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T17:46:48.997372+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}

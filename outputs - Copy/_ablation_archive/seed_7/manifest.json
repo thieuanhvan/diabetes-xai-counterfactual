@@ -1,0 +1,24 @@
+{
+  "cell_name": "seed_7",
+  "run_id": "run_20260517_1858",
+  "ablation_type": "seed",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "random",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.7590|pq=0.7950]",
+    "actionability[g": "0.7130|pq=0.9790]",
+    "AUC": "0.8221",
+    "ablation": "seed",
+    "seed_value": "7"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T19:08:17.077849+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}
