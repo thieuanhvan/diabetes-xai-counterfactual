@@ -1,8 +1,8 @@
 """Preprocessing for BRFSS 2021.
 
-Reuse from P2: stratified 80/20 split, random_state=42.
+Stratified 80/20 train/test split with `random_state=42`.
 
-Design note for P4: counterfactual generation works in the ORIGINAL encoded
+Design note: counterfactual generation works in the ORIGINAL encoded
 space (BRFSS uses integer codes for categorical features) so that CFs are
 interpretable as "change BMI from 28 to 25" rather than "change scaled BMI
 from 0.3 to -0.2". XGBoost is scale-invariant, so we skip StandardScaler.

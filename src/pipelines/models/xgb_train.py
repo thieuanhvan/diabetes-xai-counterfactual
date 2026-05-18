@@ -1,12 +1,14 @@
 """Train XGBoost on BRFSS 2021.
 
-Hyperparameters baseline from P2 run 12 (AUC=0.8228 on BRFSS 2021).
-P4 uses single XGBoost (P2 used 3 models LR/RF/XGB).
+Hyperparameters set from community defaults for the BRFSS 2021 cohort;
+no tuning is performed so that downstream actionability differences cannot
+be attributed to classifier-tuning bias. Single XGBoost classifier is
+sufficient for the per-query CF actionability analysis.
 
-v4 update (15/05/2026): Added extended_metrics() helper computing precision,
-recall, specificity, F1, balanced accuracy, MCC alongside AUC for §4.2 main_vi v4.
-Backward compatible — train_xgb() return dict gets new 'extended_metrics' key
-that downstream consumers can ignore if not needed.
+The `extended_metrics()` helper computes precision, recall, specificity,
+F1, balanced accuracy, MCC alongside AUC. Backward compatible — train_xgb()
+return dict gets an 'extended_metrics' key that downstream consumers can
+ignore if not needed.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ from xgboost import XGBClassifier
 
 @dataclass
 class XGBConfig:
-    """Hyperparameters reused from P2 run 12."""
+    """Hyperparameters from community defaults."""
     n_estimators: int = 500
     max_depth: int = 6
     learning_rate: float = 0.05

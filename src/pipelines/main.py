@@ -107,7 +107,7 @@ def _run_one_eval(
             continue
         cfs_df = cfs.drop(columns=[TARGET_COL]) if TARGET_COL in cfs.columns else cfs
         # round discrete features post-DiCE.
-        # dice_runner.py passes all features as continuous (DiCE-ml 0.11 quirk workaround).
+        # dice_runner.py passes all features as continuous (DiCE-ml 0.12 quirk workaround).
         # Without rounding, binary features (e.g. AnyHealthcare 0.001 vs 0) register as
         # spurious "changes" → inflate per_feature counts. BMI is only true continuous feature.
         cfs_df = cfs_df.copy()
@@ -201,7 +201,6 @@ def main(config_path: str) -> None:
     xgb_cfg = XGBConfig(**cfg["xgboost"])
     result = train_xgb(X_train, y_train, X_test, y_test, xgb_cfg)
     log.info(f"      test AUC: {result['auc']:.4f}")
-    log.info(f"      (P2 run 12 baseline on BRFSS 2021 full: AUC=0.8228)")
 
     # ---- 3. Pick high-risk queries (shared across modes) ----
     log.info(f"[CF Generation] compare_modes={compare_modes}")
@@ -335,7 +334,7 @@ def main(config_path: str) -> None:
         comparison.to_csv(comp_csv, index=False)
         log.info(f"      Comparison CSV: {comp_csv}")
 
-        # emit Comparison summary log block (matches run 12:19 format)
+        # emit Comparison summary log block
         log.info("      Comparison summary:")
         for metric in agg_g.index:
             g_val = float(agg_g[metric])

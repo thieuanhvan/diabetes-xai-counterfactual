@@ -94,7 +94,7 @@ The authoritative reference run was carried out on:
 
 | Spec | Value |
 |---|---|
-| CPU | Intel Core i7-1065G7 (Ice Lake, 4 cores / 8 logical threads, 1.30 GHz base / 3.90 GHz boost) |
+| CPU | Intel Core i7-1068NG7 (Ice Lake, 4 cores / 8 logical threads, 2.30 GHz base) |
 | RAM | 32 GB |
 | GPU | none used |
 | Disk | local SSD |
