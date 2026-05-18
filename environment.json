@@ -1,15 +1,18 @@
 {
-  "python": "3.11",
+  "python": "3.12.10",
   "packages": {
     "numpy": "1.26.4",
-    "pandas": "2.1.4",
-    "scikit-learn": "1.4.0",
-    "xgboost": "2.0.3",
-    "dice-ml": "0.11",
-    "shap": "0.44.1",
-    "pyyaml": "6.0.1",
-    "joblib": "1.3.2"
+    "pandas": "3.0.3",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.8.0",
+    "xgboost": "3.2.0",
+    "dice-ml": "0.12",
+    "shap": "0.49.1",
+    "pyyaml": "6.0.3",
+    "tqdm": "4.67.3",
+    "joblib": "1.5.3",
+    "psutil": "7.2.2"
   },
-  "os": "Windows 11 / Ubuntu 22.04",
-  "notes": "Reuse BRFSS preprocessing + XGBoost config from P2 (diabetes-xai-agreement run 12)."
+  "os": "Windows 10 / Ubuntu 22.04",
+  "notes": "Pinned versions matching requirements.txt and Supplementary Material Appendix B. Per-run snapshots written to logs/run_<YYYYMMDD_HHMM>.json capture the actual versions present at runtime; this file is a static reference of the authoritative pin set."
 }

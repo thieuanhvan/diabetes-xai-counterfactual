@@ -34,7 +34,10 @@ twice on the same machine produces byte-identical CSV outputs.
 or rebalancing.
 
 `src/pipelines/preprocessing/pipeline.py`: stratified 80/20 split with
-`random_state=42`, StandardScaler fitted on train only. No leakage.
+`random_state=42`. No feature scaling is applied: XGBoost is scale-invariant,
+and counterfactual generation proceeds in the original encoded space so that
+CFs are interpretable as concrete feature deltas (e.g. "change BMI from 28 to
+25") rather than scaled-space transformations.
 
 `src/pipelines/models/xgb_train.py`: train XGBoost with hyperparameters
 (n_estimators=500, max_depth=6, learning_rate=0.05, subsample=0.9,

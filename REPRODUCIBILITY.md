@@ -77,7 +77,6 @@ All random number generators are seeded from a single root seed = **42**:
 | numpy | `np.random.seed(42)` |
 | PYTHONHASHSEED | `os.environ["PYTHONHASHSEED"] = "42"` |
 | scikit-learn `train_test_split` | `random_state=42` |
-| StandardScaler | deterministic (no RNG) |
 | XGBoost | `random_state=42`, `tree_method='hist'` |
 | DiCE `generate_counterfactuals` | `random_seed=42` |
 
@@ -95,7 +94,7 @@ The authoritative reference run was carried out on:
 
 | Spec | Value |
 |---|---|
-| CPU | Intel Core i7-1068NG7 (Ice Lake, 4 cores / 8 logical threads, 2.30 GHz) |
+| CPU | Intel Core i7-1065G7 (Ice Lake, 4 cores / 8 logical threads, 1.30 GHz base / 3.90 GHz boost) |
 | RAM | 32 GB |
 | GPU | none used |
 | Disk | local SSD |
@@ -118,7 +117,7 @@ python run_main.py
 `configs/default.yaml`. The script runs the full pipeline end-to-end:
 
 1. Load BRFSS 2021 CSV from `data/`.
-2. Stratified 80/20 train/test split, StandardScaler fit on train.
+2. Stratified 80/20 train/test split (no feature scaling — XGBoost is scale-invariant; CFs are generated in the original encoded space for interpretability).
 3. Train XGBoost (`n_estimators=500`, `max_depth=6`, `learning_rate=0.05`,
    `subsample=0.9`, `colsample_bytree=0.9`, `tree_method='hist'`).
 4. Select top-200 high-risk patients by predicted `P(diabetes=1)`.

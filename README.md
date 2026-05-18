@@ -82,6 +82,14 @@ Runs all 5 ablation grids sequentially in cheap-first order (~6 hours total comp
 4. **Multi-seed variance** — 5 seeds `{42, 123, 2024, 7, 31337}`
 5. **Method comparison** — `random` / `genetic` / `kdtree`
 
+A sixth ablation (random-sample cohort, manuscript §4.5.4) is invoked separately because it draws an independent 100-patient cohort:
+
+```bash
+python ablation/run_random_sample.py
+```
+
+Output: `outputs/random_sample/{comparison, per_feature, global_cf_metrics, perquery_cf_metrics}.csv`. Wall-clock ~5 min. The cohort selection uses a dedicated `COHORT_SEED = 42` declared at the top of the script so the random draw is reproducible regardless of upstream RNG state.
+
 Aggregate the resulting per-cell runs into comparison tables:
 
 ```bash
@@ -105,7 +113,7 @@ diabetes-xai-counterfactual/
 ├── src/
 │   ├── pipelines/
 │   │   ├── data/loader.py         # BRFSS 21-feature schema
-│   │   ├── preprocessing/         # stratified 80/20 + StandardScaler
+│   │   ├── preprocessing/         # stratified 80/20 split (no scaling)
 │   │   ├── models/xgb_train.py    # XGBoost
 │   │   ├── counterfactual/
 │   │   │   ├── feature_taxonomy.py  # 5-class taxonomy

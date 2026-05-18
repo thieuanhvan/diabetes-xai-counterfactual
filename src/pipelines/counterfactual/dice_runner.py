@@ -7,7 +7,7 @@ Modes:
   features_to_vary + permitted_range from feature_taxonomy. Same wall-clock
   (~1.3s/query). Produces ethically constrained CFs.
 
-DiCE-ml 0.11 quirks worked around:
+DiCE-ml 0.12 quirks worked around:
     1. proximity/diversity weights only for method="genetic".
     2. Categorical stringify TypeError: pass all features as continuous,
        round integer features post-hoc in main.
