@@ -240,6 +240,10 @@ def main(config_path: str) -> None:
         output_dir = repo_root / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Dump test predictions for downstream calibration/threshold analysis (IJMI §4.2.1)
+    pd.DataFrame({"y_true": np.asarray(y_test).ravel(), "y_prob": result["proba"]}).to_csv(output_dir / "test_predictions.csv", index=False)
+    log.info(f"      Test predictions CSV: {output_dir / 'test_predictions.csv'}")
+
     # ---- 4. Run one or two modes ----
     if not compare_modes:
         # Single-mode (legacy) behavior
