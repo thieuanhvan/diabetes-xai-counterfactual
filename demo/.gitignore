@@ -1,0 +1,10 @@
+# Trained model artifacts (large, regenerated from src/ pipeline)
+models/*.joblib
+models/*.pkl
+
+# Local demo venv
+.venv-demo/
+
+# Python build artifacts
+__pycache__/
+*.pyc

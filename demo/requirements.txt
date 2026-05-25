@@ -1,0 +1,30 @@
+# Demo requirements — pinned to match P4 src/requirements.txt EXACTLY.
+# Mismatch will break joblib model deserialization (sklearn/xgboost
+# enforce strict version compat for pickled estimators).
+#
+# Python 3.12.10 (Windows / Ubuntu 22.04).
+
+# Core scientific stack
+numpy==1.26.4
+pandas==3.0.3
+scipy==1.17.1
+
+# ML
+scikit-learn==1.8.0
+xgboost==3.2.0
+
+# Explainability + CF generation
+dice-ml==0.12              # kdtree dtype workaround inside src/.../dice_runner.py
+
+# Configuration + I/O
+pyyaml==6.0.3
+tqdm==4.67.3
+joblib==1.5.3
+psutil==7.2.2
+
+# Demo UI
+streamlit>=1.32,<2.0
+plotly>=5.18               # Phase 4 — risk gauge + feature delta charts
+
+# Demo-only utility (parquet I/O for cached artifacts)
+pyarrow>=15.0
