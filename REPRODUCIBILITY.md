@@ -15,7 +15,10 @@ rigorous step-by-step for reviewers and future maintainers.
 cd diabetes-xai-counterfactual
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# Place cdc_brfss_diabetes_2021.csv into data/ — see data/README.md
+
+# If using the bundled reviewer archive, the cohorts are already in data/.
+
+# If cloning the public repo, place cdc_brfss_diabetes_2021.csv into data/ — see data/README.md
 python run_main.py
 ```
 

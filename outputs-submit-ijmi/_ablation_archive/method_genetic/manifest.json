@@ -1,0 +1,24 @@
+{
+  "cell_name": "method_genetic",
+  "run_id": "run_20260517_1928",
+  "ablation_type": "method",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "genetic",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.9990|pq=0.9928]",
+    "actionability[g": "0.7641|pq=1.0000]",
+    "AUC": "0.8233",
+    "ablation": "method",
+    "method_value": "genetic"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T20:30:54.334379+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}

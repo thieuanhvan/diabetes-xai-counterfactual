@@ -37,7 +37,7 @@ def _grid_method_kdtree_only():
 
 if __name__ == "__main__":
     print("█" * 70)
-    print("█  run_method_kdtree.py — Rerun kdtree cell only")
+    print("█  ablation_method_kdtree.py — Rerun kdtree cell only")
     print("█" * 70)
     print("  Reason: dice_runner.py float64 upcast workaround applied for")
     print("          DiCE 0.12 + pandas 3.x kdtree dtype bug.")
@@ -48,11 +48,11 @@ if __name__ == "__main__":
     try:
         run_grid("method", _grid_method_kdtree_only())
         elapsed_min = (time.time() - t0) / 60
-        print(f"\n[run_method_kdtree] ✓ kdtree complete in {elapsed_min:.1f} min")
+        print(f"\n[ablation_method_kdtree] ✓ kdtree complete in {elapsed_min:.1f} min")
     except Exception as e:
         elapsed_min = (time.time() - t0) / 60
-        print(f"\n[run_method_kdtree] ✗ kdtree FAILED after {elapsed_min:.1f} min")
-        print(f"[run_method_kdtree]   {type(e).__name__}: {e}")
+        print(f"\n[ablation_method_kdtree] ✗ kdtree FAILED after {elapsed_min:.1f} min")
+        print(f"[ablation_method_kdtree]   {type(e).__name__}: {e}")
         sys.exit(1)
 
     print()
@@ -61,11 +61,11 @@ if __name__ == "__main__":
     print("█" * 70)
     try:
         build_table("method")
-        print(f"\n[run_method_kdtree] ✓ outputs/ablation_method_table.csv rebuilt")
+        print(f"\n[ablation_method_kdtree] ✓ outputs/ablation_method_table.csv rebuilt")
     except Exception as e:
-        print(f"[run_method_kdtree] aggregate method failed: {type(e).__name__}: {e}")
+        print(f"[ablation_method_kdtree] aggregate method failed: {type(e).__name__}: {e}")
         sys.exit(2)
 
     total_elapsed_min = (time.time() - t0) / 60
     print()
-    print(f"[run_method_kdtree] Done. Total wall-clock: {total_elapsed_min:.1f} min")
+    print(f"[ablation_method_kdtree] Done. Total wall-clock: {total_elapsed_min:.1f} min")

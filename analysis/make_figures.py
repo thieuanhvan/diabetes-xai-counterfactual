@@ -1,13 +1,14 @@
 """Generate all figures from the latest run's outputs.
 
 Two ways to invoke:
-1. Auto-called by run_main.py at end of pipeline.
+1. Auto-called by run_main.py at the end of the pipeline.
 2. Standalone: `python analysis/make_figures.py` (right-click -> Run in
-   PyCharm cũng được). Regen figures cho LATEST run mà không re-pipeline.
+   PyCharm also works). Regenerates figures for the latest run without
+   re-running the pipeline.
 
-Convention: outputs/ reflects the latest run
-only — KHÔNG có run_id prefix trên filename. Mỗi run overwrites previous
-contents. Audit trail của các run cũ nằm ở logs/run_{ts}.{log,json}.
+Convention: the pipeline output directory reflects the latest run only --
+no run_id prefix on filenames; each run overwrites the previous contents.
+The audit trail of past runs lives in logs/run_{ts}.{log,json}.
 """
 from __future__ import annotations
 
@@ -23,7 +24,22 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+import yaml
+
 from analysis.figures import comparison_metrics, per_feature_actionability
+
+
+def _resolve_output_dir() -> Path:
+    """Resolve the pipeline output directory from configs/default.yaml so
+    figures are read from wherever the pipeline actually wrote them
+    (matches src/pipelines/main.py). Falls back to outputs/scratch."""
+    cfg_path = REPO_ROOT / "configs" / "default.yaml"
+    try:
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+        out = Path(cfg["paths"]["output_dir"])
+        return out if out.is_absolute() else REPO_ROOT / out
+    except Exception:
+        return REPO_ROOT / "outputs" / "scratch"
 
 
 def _require_csv(outputs_dir: Path, name: str) -> Path:
@@ -39,7 +55,7 @@ def _require_csv(outputs_dir: Path, name: str) -> Path:
 
 def main() -> None:
     """Generate all figures from the latest run in outputs/."""
-    outputs_dir = REPO_ROOT / "outputs"
+    outputs_dir = _resolve_output_dir()
     per_feature_csv = _require_csv(outputs_dir, "per_feature.csv")
     comparison_csv  = _require_csv(outputs_dir, "comparison.csv")
 
@@ -63,7 +79,7 @@ def main() -> None:
     print()
 
     # Future figures: add invocation here.
-    # Mỗi figure module export generate(csv_path) -> {'png': Path, 'pdf': Path}
+    # Each figure module exports generate(csv_path) -> {'png': Path, 'pdf': Path}
 
     print("[make_figures] Done.")
 

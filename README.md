@@ -27,6 +27,22 @@ pip install -r requirements.txt
 
 The BRFSS 2021 and BRFSS 2015 cleaned cohorts are bundled in the same archive under `data/` (`data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`). See `data/README.md` for the schema and `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
 
+## Reproduction entry points (run in this order)
+
+1. `python run_main.py`        — START HERE. Reproduces the headline results
+                                  (Tables 6 and 7) plus figures. ~10 min.
+2. `python analysis/external_validation_brfss2015.py`
+                                — External validation (Table 5). ~9 min.
+3. `python run_ablation_all.py` — All 5 ablation grids (Section 4.7 +
+                                  Appendix D). ~6 hours. Optional.
+4. `python run_ablation_aggregate.py`
+                                — Build ablation summary tables (after step 3).
+
+Utility scripts `ablation_taxonomy_rerun.py` and `ablation_method_kdtree.py`
+re-run individual ablation cells already covered by step 3; reviewers do not
+need to run them. To verify the paper's central claim, step 1 alone is
+sufficient.
+
 ## Authoritative results
 
 The metrics reported in the manuscript (Tables 6 and 7, Sections 4.5 and 4.6) reproduce from the frozen reference at:
@@ -155,7 +171,8 @@ diabetes-xai-counterfactual/
 
 Workaround applied in `src/pipelines/counterfactual/dice_runner.py` (`DiCERunner.__init__`):
 
-```python
+```text
+# src/pipelines/counterfactual/dice_runner.py, inside DiCERunner.__init__:
 for col in self.dice_data.continuous_feature_names:
     self.dice_data.data_df[col] = self.dice_data.data_df[col].astype("float64")
 ```
