@@ -18,19 +18,20 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data: BRFSS CSV/parquet stays out of code repo
-# - Acquisition documented in data/README.md (committed)
-# - Raw data lives in sister Kaggle repo `thieuanhvan/brfss-diabetes`
-# - Reviewer access via journal supplement on request
+# Data: BRFSS CSV/parquet stays out of the code repo
+# - Acquisition + cleaning trail documented in data/README.md and
+#   data/PROVENANCE.md (both committed)
+# - Reviewer access via the journal supplement on request
 data/*
 !data/.gitkeep
 !data/README.md
+!data/PROVENANCE.md
 
-# Run artifacts per §11.4 (16/05/2026 convention):
-# - logs/ holds log + config JSON sidecar, preserved per run (audit trail).
+# Run artifacts:
+# - logs/ holds the log + config JSON sidecar, preserved per run (audit trail).
 # - outputs/ holds data + figures, overwritten each run (latest-only).
 # Authoritative artifacts ARE committed for reviewer reproducibility.
-# Scratch runs auto-excluded via _scratch_ marker.
+# Scratch runs are auto-excluded via the _scratch_ marker.
 
 # logs/: keep authoritative run logs + configs, ignore scratch
 logs/*
@@ -39,7 +40,7 @@ logs/*
 !logs/run_[0-9]*.json
 logs/run_scratch_*
 
-# outputs/: keep data outputs + figures of latest run (no run_id prefix)
+# outputs/: keep data outputs + figures of the latest run (no run_id prefix)
 outputs/*
 !outputs/.gitkeep
 !outputs/*.csv
