@@ -31,7 +31,7 @@ The BRFSS 2021 and BRFSS 2015 cleaned cohorts are bundled in the same archive un
 
 1. `python run_main.py`        — START HERE. Reproduces the headline results
                                   (Tables 6 and 7) plus figures. ~10 min.
-2. `python analysis/external_validation_brfss2015.py`
+2. `python analysis/run_external_validation_brfss2015.py`
                                 — External validation (Table 5). ~9 min.
 3. `python run_ablation_all.py` — All 5 ablation grids (Section 4.7 +
                                   Appendix D). ~6 hours. Optional.
@@ -88,7 +88,7 @@ See `REPRODUCIBILITY.md` for the full expected-output table and verification com
 ## Reproduce the external validation (BRFSS 2015)
 
 ```bash
-python analysis/external_validation_brfss2015.py
+python analysis/run_external_validation_brfss2015.py
 ```
 
 Trains on BRFSS 2021 (identical seed and hyperparameters as the baseline run), applies the trained classifier directly to BRFSS 2015 without recalibration, and generates counterfactuals on the top-200 high-risk BRFSS 2015 patients under both modes. Output: `outputs/external_2015/`. Wall-clock ~5–9 min. Headline numbers (external AUC 0.827, per-query wrong-direction violations 0.000) match manuscript Section 4.4, Table 5.
@@ -151,7 +151,7 @@ diabetes-xai-counterfactual/
 │   ├── make_figures.py            # figures from comparison.csv
 │   ├── comparison_metrics.py      # global vs per-query Δ
 │   ├── per_feature_actionability.py
-│   ├── external_validation_brfss2015.py  # cross-year external validation (§4.4)
+│   ├── run_external_validation_brfss2015.py  # cross-year external validation (§4.4)
 │   └── topk_violations.py
 ├── ablation/
 │   ├── core.py                    # grid runner

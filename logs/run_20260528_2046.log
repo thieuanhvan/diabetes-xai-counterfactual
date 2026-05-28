@@ -11,3 +11,24 @@
 2026-05-28 20:46:50,379 | INFO |       Test predictions CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\scratch\test_predictions.csv
 2026-05-28 20:46:50,379 | INFO | [Global Mode] features_to_vary='all', no per-query constraints
 2026-05-28 20:46:50,379 | INFO |   [global] generating CFs (per_query=False)...
+2026-05-28 20:50:53,283 | INFO |   [global] scoring CFs...
+2026-05-28 20:51:06,580 | INFO |   [global] processed 200/200 (skipped 0)
+2026-05-28 20:51:06,603 | INFO |       Global CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\scratch\global_cf_metrics.csv
+2026-05-28 20:51:06,604 | INFO | [Per-Query Mode] taxonomy-constrained
+2026-05-28 20:51:06,604 | INFO |   [per_query] generating CFs (per_query=True)...
+2026-05-28 20:55:38,950 | INFO |   [per_query] scoring CFs...
+2026-05-28 20:55:51,933 | INFO |   [per_query] processed 200/200 (skipped 0)
+2026-05-28 20:55:51,953 | INFO |       Per-query CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\scratch\perquery_cf_metrics.csv
+2026-05-28 20:55:51,963 | INFO |       Per-feature CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\scratch\per_feature.csv
+2026-05-28 20:55:51,967 | INFO |       Comparison CSV: C:\Projects\uit\diabetes-xai-counterfactual\outputs\scratch\comparison.csv
+2026-05-28 20:55:51,968 | INFO |       Comparison summary:
+2026-05-28 20:55:51,968 | INFO |         validity               global=0.7520  per_query=0.8080  Δ=+0.0560
+2026-05-28 20:55:51,968 | INFO |         proximity              global=1.3966  per_query=1.4710  Δ=+0.0744
+2026-05-28 20:55:51,968 | INFO |         sparsity               global=0.0672  per_query=0.0724  Δ=+0.0052
+2026-05-28 20:55:51,968 | INFO |         diversity              global=15.1938  per_query=14.7095  Δ=-0.4843
+2026-05-28 20:55:51,968 | INFO |         plausibility           global=4.2990  per_query=4.0297  Δ=-0.2693
+2026-05-28 20:55:51,968 | INFO |         actionability          global=0.6655  per_query=0.9880  Δ=+0.3225
+2026-05-28 20:55:51,968 | INFO |         wrong_dir_violations   global=0.4350  per_query=0.0000  Δ=-0.4350
+2026-05-28 20:55:51,969 | INFO |         immutable_violations   global=0.0000  per_query=0.0000  Δ=+0.0000
+2026-05-28 20:55:52,221 | INFO | Config JSON saved: C:\Projects\uit\diabetes-xai-counterfactual\logs\run_20260528_2046.json
+2026-05-28 20:55:52,221 | INFO | === Run finished: run_20260528_2046 ===

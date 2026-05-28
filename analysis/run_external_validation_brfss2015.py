@@ -20,7 +20,7 @@ DiCE compare-modes ~5 min on top-200 high-risk).
 
 Run:
     Right-click in PyCharm, OR
-    python analysis/external_validation_brfss2015.py
+    python analysis/run_external_validation_brfss2015.py
 """
 from __future__ import annotations
 
