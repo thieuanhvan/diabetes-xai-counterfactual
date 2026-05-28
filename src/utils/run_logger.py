@@ -1,28 +1,27 @@
-"""Run logger + config JSON sidecar per generalrule §11.4/§11.5/§11.6.
+"""Run logger and per-run config JSON sidecar.
 
-Each authoritative run emits 2 artifacts cùng base name trong logs/:
+Each authoritative run emits two artifacts sharing the same base name in logs/:
 - logs/run_{YYYYMMDD_HHMM}.log       (plaintext, Python logging module)
-- logs/run_{YYYYMMDD_HHMM}.json      (UTF-8, indent=2, §11.4 schema)
+- logs/run_{YYYYMMDD_HHMM}.json      (UTF-8, indent=2, audit-trail schema)
 
-Scratch runs (is_scratch=True) thêm '_scratch' marker:
+Scratch runs (is_scratch=True) add a '_scratch' marker:
 - logs/run_scratch_{YYYYMMDD_HHMM}.{log,json}
-→ auto-gitignored per pattern 'logs/run*_scratch_*'.
+  (auto-gitignored via the pattern 'logs/run*_scratch_*').
 
-Data outputs (CSV, figures) ghi vào outputs/ KHÔNG có run_id prefix, mỗi
-run overwrites (Paper 2 convention). Run identification cho data outputs
-nằm trong logs/ sidecar pairing, KHÔNG qua filename trong outputs/.
+Data outputs (CSVs, figures) are written to outputs/ without a run_id prefix;
+each run overwrites the previous outputs. Run identification for the data
+outputs lives in the logs/ sidecar pairing, not in the outputs/ filenames.
 
-Schema fields (§11.4 + §11.6):
+Schema fields:
 - run_id, is_scratch
 - runtime: python, os, platform, hardware (cpu/cpu_count/ram_gb/gpu)
 - libraries: tracked package versions
 - seeds, dataset, hyperparameters, git_commit
-- timestamps (ISO 8601 + VN offset), notes
+- timestamps (ISO 8601 + local offset), notes
 
-Naming convention (v38, chốt 13/05/2026): pure datetime, KHÔNG dùng sequential
-counter. Datetime granularity phút đủ collision-free trong workflow thực tế.
-Counter cũ ('runN_') stateful, redundant với datetime, cognitive overhead khi
-review. Removed entirely from v38.
+Naming convention: pure datetime, no sequential counter. Minute-level datetime
+granularity is collision-free in practice, and a stateful counter would be
+redundant with the datetime while adding review overhead.
 """
 from __future__ import annotations
 
@@ -46,7 +45,7 @@ _TRACKED_LIBS = [
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §11.4 helpers — git commit, library versions
+# Helpers — git commit, library versions
 # ──────────────────────────────────────────────────────────────────────
 def _git_commit_short(repo_root: Path) -> Optional[str]:
     try:
@@ -71,7 +70,7 @@ def _library_versions() -> Dict[str, str]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §11.6 helpers — hardware capture (best-effort, cross-platform)
+# Helpers — hardware capture (best-effort, cross-platform)
 # ──────────────────────────────────────────────────────────────────────
 def _detect_cpu() -> Dict[str, Any]:
     """Best-effort CPU info via platform module + WMI on Windows."""
@@ -132,7 +131,7 @@ def _hardware_info() -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §11.4 main API — setup_run / finalize_run
+# Main API — setup_run / finalize_run
 # ──────────────────────────────────────────────────────────────────────
 def setup_run(repo_root: Path, is_scratch: bool = False) -> Dict[str, Any]:
     """Configure logging + return run context.
@@ -193,10 +192,10 @@ def finalize_run(
     classifier_metrics: Optional[Dict[str, Any]] = None,
     notes: str = "",
 ) -> None:
-    """Emit config JSON sidecar per §11.4 + §11.6 schema.
+    """Emit config JSON sidecar per the audit-trail schema.
 
-    v4 update (15/05/2026): added optional classifier_metrics field for §4.2
-    main_vi v4 extended baseline metrics (Precision/Recall/F1/Specificity/MCC).
+    Adds an optional classifier_metrics field carrying extended baseline
+    metrics (Precision/Recall/F1/Specificity/MCC).
     Backward compatible — old callers without classifier_metrics still work.
     """
     config = {
@@ -206,13 +205,13 @@ def finalize_run(
             "python": platform.python_version(),
             "os": platform.system(),
             "platform": platform.platform(),
-            "hardware": _hardware_info(),  # §11.6
+            "hardware": _hardware_info(),
         },
         "libraries": _library_versions(),
         "seeds": seeds,
         "dataset": dataset,
         "hyperparameters": hyperparameters,
-        "classifier_metrics": classifier_metrics,  # v4: §4.2 main_vi extended metrics
+        "classifier_metrics": classifier_metrics,  # extended baseline metrics
         "git_commit": _git_commit_short(run_ctx["repo_root"]),
         "timestamps": {
             "start": run_ctx["timestamp_start"].isoformat(),

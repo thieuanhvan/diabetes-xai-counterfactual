@@ -8,7 +8,7 @@ and produces PNG + PDF figure showing:
 - Bottom panel: count of CF changes per feature
 Both panels compare global vs per-query mode side-by-side.
 
-Per Generalrule §10 (figure conventions):
+Figure conventions:
 - All in-image text in English (axes, labels, legends)
 - No 'Figure N' in title — caption in manuscript handles numbering
 - Title is descriptive of content
@@ -92,7 +92,7 @@ def generate(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Derive output base name: fixed, no run_id prefix (Paper 2 convention).
+    # Derive output base name: fixed, no run_id prefix.
     # outputs/ reflects latest run only; manuscript references fig_*.png
     # unambiguously regardless of when the run happened.
     base = 'fig_per_feature'

@@ -6,7 +6,7 @@ generation (no logic duplication, no changes to existing pipeline code).
 
 Prerequisite:
     Place BRFSS 2015 cleaned CSV at `data/cdc_brfss_diabetes_2015.csv`
-    (same 21-feature schema as BRFSS 2021; copy from P2 repo).
+    (same 21-feature schema as BRFSS 2021; see data/PROVENANCE.md).
 
 Outputs (written to outputs/external_2015/):
     test_predictions.csv              — y_true + y_prob on 2015
@@ -82,9 +82,9 @@ def main() -> int:
     log.info(f"[2/6] Load EXTERNAL TEST cohort: {test_csv}")
     if not test_csv.exists():
         log.error(f"BRFSS 2015 CSV not found at: {test_csv}")
-        log.error("Copy BRFSS 2015 cleaned CSV from P2 repo "
-                  "(diabetes-xai-agreement) into this path. Expected 21 features "
-                  "same as BRFSS 2021 schema.")
+        log.error("Place the BRFSS 2015 cleaned CSV at this path. "
+                  "See data/README.md and data/PROVENANCE.md for acquisition. "
+                  "Expected 21 features, same schema as BRFSS 2021.")
         return 1
     X_test, y_test = load_dataset(test_csv)
     log.info(f"      2015 shape: X={X_test.shape}, prevalence={y_test.mean():.4f}")

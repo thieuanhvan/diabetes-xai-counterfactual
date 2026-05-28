@@ -1,17 +1,18 @@
-"""Pipeline entry §11.5 wrapper. Right-click → Run trong PyCharm.
+"""Pipeline entry-point wrapper. Right-click -> Run in PyCharm.
 
-Sau khi pipeline xong, tự động gọi 2 analysis steps:
-1. analysis/make_figures.py — gen figures (PNG + PDF) cho run vừa chạy.
-2. analysis/topk_violations.py — rank features by violation_rate reduction
+After the pipeline finishes, two analysis steps are invoked automatically:
+1. analysis/make_figures.py    — generate figures (PNG + PDF) for the latest run.
+2. analysis/topk_violations.py — rank features by violation-rate reduction
    (CSV + Markdown table).
 
-Mỗi analysis step best-effort: pipeline outputs vẫn valid nếu step thất bại
-(e.g. matplotlib chưa cài → skip figures, vẫn chạy topk).
+Each analysis step is best-effort: the pipeline outputs remain valid even if a
+step fails (e.g. if matplotlib is not installed, figure generation is skipped
+but topk still runs).
 
-Không nhận tham số CLI — mọi config hardcoded.
+No CLI arguments are accepted — all configuration is fixed in code.
 - Pipeline config: configs/default.yaml
-- Figure generation:  always-on (best-effort, skip nếu matplotlib missing)
-- Topk violations:    always-on (best-effort, skip nếu pandas missing)
+- Figure generation: always-on (best-effort, skipped if matplotlib missing)
+- Topk violations:   always-on (best-effort, skipped if pandas missing)
 """
 from __future__ import annotations
 
@@ -19,10 +20,8 @@ import sys
 from pathlib import Path
 
 
-# ──────────────────────────────────────────────────────────────────────
-# §11.5 — wrapper ở REPO ROOT nên repo root = parent của file này.
-# Không walk-up: không cần check src/ hoặc outputs/ tồn tại.
-# ──────────────────────────────────────────────────────────────────────
+# This wrapper lives at the repo root, so repo root = the file's own parent.
+# No walk-up is needed; we do not check for src/ or outputs/ existence here.
 REPO_ROOT = Path(__file__).resolve().parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -32,13 +31,13 @@ from src.pipelines.main import main as run_pipeline
 
 
 def _maybe_run_figures() -> None:
-    """Best-effort: gen figures sau pipeline. Pipeline outputs vẫn valid
-    nếu figure generation thất bại (e.g. matplotlib chưa cài)."""
+    """Best-effort figure generation after the pipeline. Pipeline outputs stay
+    valid if figure generation fails (e.g. matplotlib not installed)."""
     try:
         from analysis.make_figures import main as make_figures
     except ImportError as e:
         print(f"\n[run_main] Skip figures (import failed): {e}")
-        print("[run_main]   → Cài matplotlib: pip install matplotlib")
+        print("[run_main]   -> Install matplotlib: pip install matplotlib")
         return
 
     print()
@@ -50,12 +49,12 @@ def _maybe_run_figures() -> None:
     except Exception as e:
         print(f"\n[run_main] Figure generation failed: {type(e).__name__}: {e}")
         print("[run_main] Pipeline outputs (CSV/JSON/log) still valid.")
-        print("[run_main] Regen figures: python analysis/make_figures.py")
+        print("[run_main] Regenerate figures: python analysis/make_figures.py")
 
 
 def _maybe_run_topk() -> None:
-    """Best-effort: gen topk_violations ranking sau pipeline. Pipeline outputs
-    vẫn valid nếu step thất bại."""
+    """Best-effort topk_violations ranking after the pipeline. Pipeline outputs
+    stay valid if the step fails."""
     try:
         from analysis.topk_violations import main as run_topk
     except ImportError as e:
@@ -71,7 +70,7 @@ def _maybe_run_topk() -> None:
     except Exception as e:
         print(f"\n[run_main] Topk_violations failed: {type(e).__name__}: {e}")
         print("[run_main] Pipeline outputs (CSV/JSON/log) still valid.")
-        print("[run_main] Regen ranking: python analysis/topk_violations.py")
+        print("[run_main] Regenerate ranking: python analysis/topk_violations.py")
 
 
 if __name__ == "__main__":

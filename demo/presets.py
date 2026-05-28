@@ -1,8 +1,8 @@
 """
-Archetypal patient presets for the P4 counterfactual demo.
+Archetypal patient presets for the counterfactual demo.
 
 Hand-crafted clinical profiles spanning the diabetes-risk spectrum, used
-to give the MAPR oral / defense audience a one-click way to see different
+to give the audience a one-click way to see different
 CF behaviors without dialing 21 sidebar inputs.
 
 Profiles are CURATED rather than mined from the BRFSS test set — this

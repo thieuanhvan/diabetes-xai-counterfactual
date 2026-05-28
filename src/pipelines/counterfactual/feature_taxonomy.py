@@ -5,7 +5,7 @@ Defines mutability + range + semantic label per feature. Used by:
 - Actionability metric to score CFs post-hoc
 - Per-query filters (drop features at semantic extremes; restrict direction)
 
-Mutability "intervention-direction" lens (v1, 12/05/2026):
+Mutability "intervention-direction" lens:
 - IMMUTABLE: demographic / biological / irreversible history
 - MONOTONIC_UP: positive behaviors (CF may only INCREASE)
 - MONOTONIC_DOWN: negative behaviors/states (CF may only DECREASE)
@@ -143,7 +143,7 @@ def set_socioeconomic_proxies_immutable(flag: bool) -> None:
 
     When False (default = 5-class or 4-class taxonomies), the three features
     retain their MONOTONIC_UP class. This is the variant evaluated in the
-    main results (§4).
+    main results (Section 4 of the manuscript).
 
     Effect persists until set_socioeconomic_proxies_immutable(False) or
     process exit.

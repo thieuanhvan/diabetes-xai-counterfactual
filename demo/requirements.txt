@@ -1,4 +1,4 @@
-# Demo requirements — pinned to match P4 src/requirements.txt EXACTLY.
+# Demo requirements — pinned to match the project requirements.txt EXACTLY.
 # Mismatch will break joblib model deserialization (sklearn/xgboost
 # enforce strict version compat for pickled estimators).
 #

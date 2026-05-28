@@ -2,8 +2,8 @@
 
 This document specifies the exact environment, data, seeds and expected
 numerical outputs needed to reproduce the results reported in
-*"A Knowledge-Guided Constraint Compiler for Actionable Counterfactual
-Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
+*"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision
+Support: A Directional Intervention Taxonomy"* (manuscript under peer review).
 
 Companion file `README.md` is the high-level entry point; this file is the
 rigorous step-by-step for reviewers and future maintainers.
@@ -11,7 +11,7 @@ rigorous step-by-step for reviewers and future maintainers.
 ## TL;DR
 
 ```bash
-git clone https://github.com/thieuanhvan/diabetes-xai-counterfactual.git
+# Extract the reviewer archive provided through the submission portal, then:
 cd diabetes-xai-counterfactual
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -19,7 +19,7 @@ pip install -r requirements.txt
 python run_main.py
 ```
 
-Expected wall-clock: ≈60 minutes on the reference hardware (Intel Core i7,
+Expected wall-clock: ~30 minutes on the reference hardware (Intel Core i7,
 8 logical cores, no GPU). Outputs land in `outputs/scratch/`. Compare the
 numerical values against the "Expected numerical outputs" tables below, or
 diff directly against the frozen authoritative snapshot at
@@ -256,7 +256,7 @@ key headline values to verify:
 - Per-query wrong-direction violation rate == 0.000 (exact match)
 - Three Pattern (a) features all show 100% / 0 split
 
-If any value drifts beyond the multi-seed CV reported in §4.5.1 of the
+If any value drifts beyond the multi-seed CV reported in §4.7.1 of the
 manuscript (≤0.7% on validity and actionability), see Troubleshooting below.
 
 ## 8. Known sources of variation
@@ -286,8 +286,8 @@ The following *would* introduce variation but are guarded against:
 numpy or xgboost version mismatch from a stale virtual environment.
 
 **`KeyError` on column load.** The BRFSS CSV must contain exactly the 22
-columns listed in `data/README.md`. The cleaning script in the sister
-repository `thieuanhvan/brfss-diabetes` produces the correct schema.
+columns listed in `data/README.md`. The cleaning steps documented in
+`data/PROVENANCE.md` produce the correct schema from the public CDC source.
 
 **`TypeError: Invalid value <x> for dtype 'float32'` during kdtree method
 ablation.** Known DiCE 0.12 + pandas 3.x incompatibility; workaround is

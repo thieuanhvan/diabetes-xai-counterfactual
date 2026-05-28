@@ -11,7 +11,7 @@ filters by cfg.hyperparameters.dice.method.
 Wall-clock estimate: ~20-30 min (kdtree is fast per DiCE; 200 queries x ~1.3s
 per query x 2 modes ≈ 8-9 min + setup + posthoc).
 
-§11.5 wrapper.
+Top-level wrapper.
 """
 from __future__ import annotations
 

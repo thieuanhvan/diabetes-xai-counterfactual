@@ -1,12 +1,12 @@
-# P4 Counterfactual Demo
+# Counterfactual Recommendation Demo
 
 Streamlit app for interactive exploration of counterfactual recommendations on diabetes risk predictions (BRFSS 2021).
 
-Companion artifact to **P4 — Knowledge-Guided Constraint Compiler for Actionable CFs in Diabetes Risk Prediction**. Designed for live demo at MAPR oral (if accepted) and thesis defense.
+Companion artifact to the manuscript *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"*. Provides an interactive walk-through of the per-query directional taxonomy on individual high-risk patients.
 
 ## Status
 
-**Phase 5 — Audit-then-act.** Sidebar preset selector (6 archetypes from very-high risk to low risk + boundary), main-panel method selector (random / kdtree / genetic). On Generate, all 3 DiCE methods run; main panel shows the selected method's full result (gauges + narrative + waterfall); a new **Compare methods** section displays all 3 best CFs side-by-side. Smoke-tested: 3 methods on the same patient produced 3 distinct recommendations (1, 4, 10 features changed respectively) — the headline observation for the thesis defense narrative.
+**Phase 5 — Audit-then-act.** Sidebar preset selector (6 archetypes from very-high risk to low risk + boundary), main-panel method selector (random / kdtree / genetic). On Generate, all 3 DiCE methods run; main panel shows the selected method's full result (gauges + narrative + waterfall); a new **Compare methods** section displays all 3 best CFs side-by-side. Smoke-tested: 3 methods on the same patient produced 3 distinct recommendations (1, 4, 10 features changed respectively) — the headline observation of the method-sensitivity comparison.
 
 ## Setup
 
@@ -23,7 +23,7 @@ Then materialize the model and training-sample artifacts (one-time, ~30-60 s):
 python demo/prepare_demo_artifacts.py
 ```
 
-This reuses P4's own pipeline (loader → split → xgb_train) — no logic duplicated. Outputs land in `demo/models/`. The app warns gracefully if artifacts are absent.
+This reuses the project's own pipeline (loader -> split -> xgb_train) — no logic duplicated. Outputs land in `demo/models/`. The app warns gracefully if artifacts are absent.
 
 ## Run
 
@@ -38,7 +38,7 @@ App opens at <http://localhost:8501>.
 ```
 demo/
 ├── app.py                       # Streamlit entry point
-├── prepare_demo_artifacts.py    # One-time artifact prep (reuses P4 pipeline)
+├── prepare_demo_artifacts.py    # One-time artifact prep (reuses the project pipeline)
 ├── narrative.py                 # Template-based CF → text (Phase 3)
 ├── visualizations.py            # Plotly gauges + bar chart + waterfall (Phase 4)
 ├── presets.py                   # Phase 5 — archetypal patient cache
@@ -68,5 +68,4 @@ demo/
 ## Notes
 
 - Demo runs **fully offline** — no LLM API calls. Intentional for oral presentation reliability.
-- Phase 5 compares **DiCE-random vs DiCE-kdtree vs DiCE-genetic** on the same patient. This mirrors P4's `configs/ablation_method_*.yaml` framework and bridges to P2's cross-method audit narrative (method-choice sensitivity within the CF family ↔ method-choice sensitivity within the explanation family).
-- Repo stays **private** until P4 acceptance.
+- Phase 5 compares **DiCE-random vs DiCE-kdtree vs DiCE-genetic** on the same patient. This mirrors the `configs/ablation_method_*.yaml` framework and illustrates method-choice sensitivity within the CF family.

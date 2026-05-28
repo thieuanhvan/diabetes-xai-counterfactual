@@ -2,10 +2,10 @@
 
 Two ways to invoke:
 1. Auto-called by run_main.py at end of pipeline.
-2. Standalone: `python analysis/make_figures.py` (right-click → Run trong
+2. Standalone: `python analysis/make_figures.py` (right-click -> Run in
    PyCharm cũng được). Regen figures cho LATEST run mà không re-pipeline.
 
-Per Paper 2 convention (Generalrule §11.4): outputs/ phản ánh latest run
+Convention: outputs/ reflects the latest run
 only — KHÔNG có run_id prefix trên filename. Mỗi run overwrites previous
 contents. Audit trail của các run cũ nằm ở logs/run_{ts}.{log,json}.
 """
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §11.5 — file này ở analysis/ (1 level deep) nên repo root = parent.parent
+# This file lives in analysis/ (one level deep), so repo root = parent.parent
 # ──────────────────────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -32,7 +32,7 @@ def _require_csv(outputs_dir: Path, name: str) -> Path:
     if not csv_path.exists():
         raise FileNotFoundError(
             f"Not found: {csv_path}. "
-            "Cần chạy pipeline với compare_modes=true trước (configs/default.yaml)."
+            "Run the pipeline with compare_modes=true first (configs/default.yaml)."
         )
     return csv_path
 

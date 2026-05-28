@@ -1,4 +1,4 @@
-"""Pipeline orchestrator for P4 (Counterfactual + Actionability on BRFSS 2021).
+"""Pipeline orchestrator (Counterfactual + Actionability on BRFSS 2021).
 
 Runs the full experiment end-to-end:
   data load -> preprocessing -> XGBoost training -> DiCE CF generation in
@@ -240,7 +240,7 @@ def main(config_path: str) -> None:
         output_dir = repo_root / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Dump test predictions for downstream calibration/threshold analysis (IJMI §4.2.1)
+    # Dump test predictions for downstream calibration/threshold analysis
     pd.DataFrame({"y_true": np.asarray(y_test).ravel(), "y_prob": result["proba"]}).to_csv(output_dir / "test_predictions.csv", index=False)
     log.info(f"      Test predictions CSV: {output_dir / 'test_predictions.csv'}")
 
@@ -360,7 +360,7 @@ def main(config_path: str) -> None:
     if notes_suffix:
         notes_str = f"{notes_str}; {notes_suffix}"
 
-    # §11.4 finalize
+    # Finalize run: emit log + config sidecar
     finalize_run(
         run_ctx,
         seeds={
@@ -385,7 +385,7 @@ def main(config_path: str) -> None:
             # capture taxonomy config in hyperparameters JSON for reproducibility
             "taxonomy": cfg.get("taxonomy", {}),
         },
-        # v4 update (15/05/2026): record extended classifier metrics for §4.2 main_vi
+        # Record extended classifier metrics (calibration, threshold sweep)
         classifier_metrics=result.get("extended_metrics"),
         notes=notes_str,
     )

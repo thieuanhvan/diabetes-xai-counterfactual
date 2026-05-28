@@ -2,19 +2,19 @@
 
 After each ablation grid finishes (e.g. multi-seed = 5 runs), call the matching
 build_table_*() function here to compress N archived cell directories into a
-single comparison CSV ready for Bảng 4.5.x in main_vi v7.
+single comparison CSV ready for the ablation summary tables.
 
 Source of truth:
 - outputs/_ablation_archive/<cell_name>/ created by ablation.core._snapshot_outputs
 - Each archive contains:
     - manifest.json     (cell_name, run_id, ablation_type, notes_kv)
-    - config.json       (copy of logs/run_<TS>.json — full §11.4 sidecar)
+    - config.json       (copy of logs/run_<TS>.json — full audit sidecar)
     - comparison.csv    (pre-aggregated global vs per_query metrics)
     - perquery_cf_metrics.csv  (per-instance metrics; aggregator means it)
     - global_cf_metrics.csv
     - per_feature.csv
 
-Output CSVs go to outputs/ablation_<name>_table.csv per Generalrule v38 §11.4.
+Output CSVs go to outputs/ablation_<name>_table.csv.
 
 v4 (16/05/2026): rewritten against _ablation_archive/. Drops the 2-pass
 marker-vs-fallback filter — the manifest.ablation_type field is now the single
@@ -27,11 +27,11 @@ v3 codepath and should re-run their ablations.
 
 Usage (run from repo root):
 
-    python -m ablation.aggregate seed       # build Bảng 4.5.1
-    python -m ablation.aggregate method     # build Bảng 4.5.2
-    python -m ablation.aggregate n_cf       # build Bảng 4.5.3
-    python -m ablation.aggregate class      # build Bảng 4.5.4
-    python -m ablation.aggregate taxonomy   # build Bảng 4.5.5
+    python -m ablation.aggregate seed       # build the multi-seed table
+    python -m ablation.aggregate method     # build the method-comparison table
+    python -m ablation.aggregate n_cf       # build the n_cf-sweep table
+    python -m ablation.aggregate class      # build the risk-cohort table
+    python -m ablation.aggregate taxonomy   # build the taxonomy-granularity table
     python -m ablation.aggregate all        # build all 5 in one go
 """
 from __future__ import annotations
@@ -88,7 +88,7 @@ def filter_by_ablation_type(cells: List[ArchivedCell], ablation_type: str) -> Li
 
 
 def load_cell_config(cell_dir: Path) -> Dict[str, Any]:
-    """Read the cell's copied §11.4 config sidecar (config.json)."""
+    """Read the cell's copied config sidecar (config.json)."""
     config_path = cell_dir / "config.json"
     if not config_path.exists():
         return {}
@@ -114,7 +114,7 @@ def aggregate_perquery_metrics(cell_dir: Path) -> Dict[str, float]:
 # Per-ablation table builders
 # ──────────────────────────────────────────────────────────────────────
 def build_table_seed(cells: List[ArchivedCell]) -> pd.DataFrame:
-    """Bảng 4.5.1 — multi-seed: 1 row per seed + MEAN/STD summary rows."""
+    """Multi-seed table: 1 row per seed + MEAN/STD summary rows."""
     selected = filter_by_ablation_type(cells, "seed")
     rows = []
     for cell_name, cell_dir, manifest in selected:
@@ -151,7 +151,7 @@ def build_table_seed(cells: List[ArchivedCell]) -> pd.DataFrame:
 
 
 def build_table_method(cells: List[ArchivedCell]) -> pd.DataFrame:
-    """Bảng 4.5.2 — method comparison: 1 row per method (random/genetic/kdtree)."""
+    """Method-comparison table: 1 row per method (random/genetic/kdtree)."""
     selected = filter_by_ablation_type(cells, "method")
     rows = []
     for cell_name, cell_dir, manifest in selected:
@@ -178,7 +178,7 @@ def build_table_method(cells: List[ArchivedCell]) -> pd.DataFrame:
 
 
 def build_table_n_cf(cells: List[ArchivedCell]) -> pd.DataFrame:
-    """Bảng 4.5.3 — n_counterfactuals sweep: 1 row per n_cf value."""
+    """n_counterfactuals-sweep table: 1 row per n_cf value."""
     selected = filter_by_ablation_type(cells, "n_cf")
     rows = []
     for cell_name, cell_dir, manifest in selected:
@@ -201,7 +201,7 @@ def build_table_n_cf(cells: List[ArchivedCell]) -> pd.DataFrame:
 
 
 def build_table_class(cells: List[ArchivedCell]) -> pd.DataFrame:
-    """Bảng 4.5.4 — class balance: 1 row per risk-threshold cohort.
+    """Risk-cohort table: 1 row per risk-threshold cohort.
 
     risk_threshold sourced from manifest.notes_kv['class_threshold'] (string).
     """
@@ -227,7 +227,7 @@ def build_table_class(cells: List[ArchivedCell]) -> pd.DataFrame:
 
 
 def build_table_taxonomy(cells: List[ArchivedCell]) -> pd.DataFrame:
-    """Bảng 4.5.5 — taxonomy granularity: rows = taxonomy variants.
+    """Taxonomy-granularity table: rows = taxonomy variants.
 
     Supports 3 known variants:
     - 5-class default (taxonomy_n_classes=5)

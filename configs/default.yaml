@@ -10,7 +10,7 @@ random:
 data:
   sample_n: null              # null = full ~236k rows (paper-authoritative)
                               # integer = random sample N rows for dev iteration
-                              # vd 5000 -> wall-clock ~15s training + CF scales with test split
+                              # e.g. 5000 -> wall-clock ~15s training + CF scales with test split
   sample_seed: 42             # RNG seed for sampling reproducibility
 
 split:
@@ -41,6 +41,6 @@ dice:
   per_query: true
 
 evaluate:
-  n_test_instances: 200       # số patient cao-risk cho CF eval. Auto-clamp nếu > test split
+  n_test_instances: 200       # high-risk patients for CF eval. Auto-clamped if > test split
   plausibility_neighbors: 50
-  compare_modes: true    # NEW
+  compare_modes: true

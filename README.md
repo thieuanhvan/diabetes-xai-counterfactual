@@ -1,6 +1,6 @@
 # diabetes-xai-counterfactual
 
-Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"A Knowledge-Guided Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction"* (manuscript under peer review).
+Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"* (manuscript under peer review).
 
 ## What this does
 
@@ -13,8 +13,9 @@ Per-query mode improves actionability score from 0.666 → 0.988 (+48.5% relativ
 
 ## Quick start
 
+This repository is provided as a zip archive through the journal submission portal. After extracting the archive:
+
 ```bash
-git clone https://github.com/thieuanhvan/diabetes-xai-counterfactual.git
 cd diabetes-xai-counterfactual
 
 python -m venv .venv
@@ -24,18 +25,18 @@ source .venv/bin/activate          # Linux/macOS
 pip install -r requirements.txt
 ```
 
-Place the BRFSS 2021 CSV at `data/cdc_brfss_diabetes_2021.csv` (schema: 21 features + `Diabetes_binary` target, n=236,378). See `data/README.md` for acquisition details. The cleaning toolkit lives in the separate sister repository `thieuanhvan/brfss-diabetes`.
+The BRFSS 2021 and BRFSS 2015 cleaned cohorts are bundled in the same archive under `data/` (`data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`). See `data/README.md` for the schema and `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
 
 ## Authoritative results
 
-The metrics reported in the manuscript (Tables 4 and 5, Sections 4.3 and 4.4) reproduce from the frozen reference at:
+The metrics reported in the manuscript (Tables 6 and 7, Sections 4.5 and 4.6) reproduce from the frozen reference at:
 
 ```
 outputs/archive/manuscript/
-├── comparison.csv          ← Table 4 (headline comparison)
+├── comparison.csv          ← Table 6 (headline comparison)
 ├── global_cf_metrics.csv
 ├── perquery_cf_metrics.csv
-├── per_feature.csv          ← Table 5 (per-feature breakdown)
+├── per_feature.csv          ← Table 7 (per-feature breakdown)
 ├── config.json              ← full runtime/library/seed audit
 └── manifest.json
 ```
@@ -64,9 +65,17 @@ Outputs (scratch space — overwritten on each run):
 
 Expected wall-clock: ~30 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
 
-To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.5.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
+To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.7.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
 
 See `REPRODUCIBILITY.md` for the full expected-output table and verification commands.
+
+## Reproduce the external validation (BRFSS 2015)
+
+```bash
+python analysis/external_validation_brfss2015.py
+```
+
+Trains on BRFSS 2021 (identical seed and hyperparameters as the baseline run), applies the trained classifier directly to BRFSS 2015 without recalibration, and generates counterfactuals on the top-200 high-risk BRFSS 2015 patients under both modes. Output: `outputs/external_2015/`. Wall-clock ~5–9 min. Headline numbers (external AUC 0.827, per-query wrong-direction violations 0.000) match manuscript Section 4.4, Table 5.
 
 ## Reproduce the ablation studies
 
@@ -82,7 +91,7 @@ Runs all 5 ablation grids sequentially in cheap-first order (~6 hours total comp
 4. **Multi-seed variance** — 5 seeds `{42, 123, 2024, 7, 31337}`
 5. **Method comparison** — `random` / `genetic` / `kdtree`
 
-A sixth ablation (random-sample cohort, manuscript §4.5.4) is invoked separately because it draws an independent 100-patient cohort:
+A sixth ablation (random-sample cohort, manuscript Section 4.7.4) is invoked separately because it draws an independent 100-patient cohort:
 
 ```bash
 python ablation/run_random_sample.py
@@ -109,7 +118,7 @@ diabetes-xai-counterfactual/
 ├── run_ablation_aggregate.py      # aggregate 5 ablation tables
 ├── requirements.txt               # pinned versions for reproducibility
 ├── configs/default.yaml           # pipeline config (deterministic, seed=42)
-├── data/                          # BRFSS CSV location (gitignored; see data/README.md)
+├── data/                          # BRFSS 2021 + 2015 cohorts (bundled; see data/README.md)
 ├── src/
 │   ├── pipelines/
 │   │   ├── data/loader.py         # BRFSS 21-feature schema
@@ -126,6 +135,7 @@ diabetes-xai-counterfactual/
 │   ├── make_figures.py            # figures from comparison.csv
 │   ├── comparison_metrics.py      # global vs per-query Δ
 │   ├── per_feature_actionability.py
+│   ├── external_validation_brfss2015.py  # cross-year external validation (§4.4)
 │   └── topk_violations.py
 ├── ablation/
 │   ├── core.py                    # grid runner
@@ -133,8 +143,8 @@ diabetes-xai-counterfactual/
 ├── tests/                         # taxonomy + per-feature unit tests
 └── outputs/
     ├── archive/
-    │   └── manuscript/         # frozen reference — manuscript Tables 4 and 5
-    ├── _ablation_archive/          # 18 ablation cells (all snapshots from §4.5)
+    │   └── manuscript/         # frozen reference — manuscript Tables 6 and 7
+    ├── _ablation_archive/          # 18 ablation cells (all snapshots from §4.7)
     ├── ablation_*_table.csv        # aggregated ablation summary tables
     └── scratch/                    # working dir — overwritten on each run
 ```
@@ -154,15 +164,15 @@ Upstream issue: `dice-ml` GitHub #423 / #445 (not yet patched as of v0.12).
 
 ## Dataset
 
-BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence). The cleaned slice used here mirrors the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Cleaning toolkit lives in the separate repository `thieuanhvan/brfss-diabetes` (private during peer review; will be released alongside this paper's acceptance). For reviewer access during review, the cleaned CSV can be supplied as a journal supplement on request through the submission portal.
+BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence) for training and internal evaluation; BRFSS 2015 (n = 253,680) for cross-year external validation. The cleaned slices follow the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Both cohorts are bundled in this archive under `data/`. The full cleaning trail from the original CDC `LLCP*.XPT` source files is documented in `data/PROVENANCE.md`.
 
-See `data/README.md` for full acquisition instructions and `REPRODUCIBILITY.md` for the runtime environment specification.
+See `data/README.md` for the schema and acquisition routes, and `REPRODUCIBILITY.md` for the runtime environment specification.
 
 ## Citation
 
 ```bibtex
 @unpublished{thieu2026p4,
-  title  = {A Knowledge-Guided Constraint Compiler for Actionable Counterfactual Explanations in Diabetes Risk Prediction},
+  title  = {Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy},
   author = {Van Thieu},
   year   = {2026},
   note   = {Manuscript under peer review}
@@ -173,8 +183,8 @@ See `data/README.md` for full acquisition instructions and `REPRODUCIBILITY.md` 
 
 Source code: MIT (planned, finalized at publication).
 
-BRFSS 2021 microdata are publicly released by the U.S. Centers for Disease Control and Prevention under U.S. federal public-domain terms. The cleaned processed cohort used here is redistributed with full attribution to CDC and remains subject to the CDC public-use terms of the original release; no additional license is asserted over the underlying data.
+BRFSS 2021 and 2015 microdata are publicly released by the U.S. Centers for Disease Control and Prevention under U.S. federal public-domain terms. The cleaned processed cohorts used here are redistributed with full attribution to CDC and remain subject to the CDC public-use terms of the original release; no additional license is asserted over the underlying data.
 
 ## Contact
 
-Van Thieu — thieuanhvan@gmail.com — ORCID: 0009-0003-9637-0195
+Van Thieu — vantv.20@grad.uit.edu.vn — ORCID: 0009-0003-9637-0195

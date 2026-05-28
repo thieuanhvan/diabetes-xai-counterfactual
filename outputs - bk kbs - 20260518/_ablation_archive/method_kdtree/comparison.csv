@@ -1,9 +1,0 @@
-metric,global,per_query,delta_abs,rel_delta_pct
-validity,0.05,0.0,-0.05,-100.0
-proximity,4.593484848484849,,,
-sparsity,0.3761904761904762,,,
-diversity,1.0,,,
-plausibility,3.5585658829459574,,,
-actionability,0.6179978354978355,,,
-wrong_dir_violations,2.9,,,
-immutable_violations,0.0,,,

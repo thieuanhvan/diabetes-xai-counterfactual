@@ -1,6 +1,6 @@
 """run_ablation_aggregate.py — Master aggregation wrapper.
 
-Top-level workflow per Generalrule §11.5. Right-clickable in PyCharm.
+Top-level workflow wrapper. Right-clickable in PyCharm.
 
 Mirrors the run_main → make_figures auto-call pattern: after run_ablation_all.py
 finishes the 5 grids, run this script to aggregate each grid into its

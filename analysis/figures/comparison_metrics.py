@@ -9,7 +9,7 @@ and produces PNG + PDF figure with two panels:
 - Bottom: absolute values side-by-side (global vs per-query), grouped by
           metric. Y-axis is log-scale because metrics span [0, 15+].
 
-Per Generalrule §10 (figure conventions):
+Figure conventions:
 - All in-image text in English (axes, labels, legends).
 - No 'Figure N' in title — caption in manuscript handles numbering.
 - Title is descriptive of content.
@@ -99,7 +99,7 @@ def generate(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Output base name: fixed, no run_id prefix (Paper 2 convention).
+    # Output base name: fixed, no run_id prefix.
     # outputs/ reflects latest run only; manuscript references fig_*.png
     # unambiguously regardless of when the run happened.
     base = 'fig_comparison_metrics'

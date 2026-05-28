@@ -12,7 +12,7 @@ class-balance ablations are skipped with a warning rather than crashing.
 After all grids finish, builds 5 ablation_*_table.csv tables via
 ablation.aggregate (best-effort each).
 
-Total wall-clock estimate (Vân hardware, all 5 ablations, n_test_instances=200):
+Total wall-clock estimate (reference hardware, all 5 ablations, n_test_instances=200):
 - Ablation 5 taxonomy (2 runs):  ~20 min
 - Ablation 4 class    (3 runs):  ~30 min
 - Ablation 3 n_cf     (4 runs):  ~40 min
@@ -21,7 +21,7 @@ Total wall-clock estimate (Vân hardware, all 5 ablations, n_test_instances=200)
 ─────────────────────────────────────
 Total                  17 runs:  ~5-6h
 
-§11.5 wrapper.
+Top-level wrapper.
 
 v3 (16/05/2026): all 5 grids set notes_suffix with 'ablation=<type>' marker so
 ablation.aggregate can filter strictly. Existing 'class_threshold=' and
@@ -333,4 +333,4 @@ if __name__ == "__main__":
             print("[SMOKE] ✗ FAIL — fix issues above before committing to the full run.")
             sys.exit(1)
     else:
-        print("[run_ablation_all] Done. Ready to integrate vào main_vi v7+ §4.5.x.")
+        print("[run_ablation_all] Done. Ablation summary tables written to outputs/.")

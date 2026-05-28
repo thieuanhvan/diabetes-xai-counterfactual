@@ -49,7 +49,7 @@ def extended_metrics(
 ) -> Dict[str, Any]:
     """Compute 8 classifier metrics + confusion matrix counts at given threshold.
 
-    Used for §4.2 Bảng 4.2.1 of main_vi v4. AUC is threshold-free.
+    Reports threshold-free AUC alongside threshold-dependent metrics.
     Returns a JSON-serializable dict (all floats/ints).
     """
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
@@ -81,7 +81,7 @@ def train_xgb(
     Returns:
         dict with keys: 'model' (XGBClassifier), 'auc' (float),
         'predictions' (np.ndarray), 'proba' (np.ndarray),
-        'extended_metrics' (dict — NEW v4 §4.2).
+        'extended_metrics' (dict of calibration + threshold metrics).
     """
     cfg = config or XGBConfig()
     model = XGBClassifier(**cfg.__dict__)

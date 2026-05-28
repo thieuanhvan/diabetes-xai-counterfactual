@@ -1,4 +1,4 @@
-"""Calibration + threshold sensitivity analysis for IJMI §4.2.1.
+"""Calibration and threshold-sensitivity analysis for the classifier baseline.
 
 Reads outputs/test_predictions.csv (y_true, y_prob) produced by the
 authoritative pipeline run, computes:
@@ -134,7 +134,7 @@ def main() -> int:
 
     # ---- 5. Summary block ready for manuscript ----------------------------
     print("=" * 60)
-    print("Summary for manuscript §4.2.1:")
+    print("Summary for the calibration and threshold-sensitivity section:")
     print("=" * 60)
     print(f"Brier score:                    {brier:.4f}")
     print(f"Log loss:                       {ll:.4f}")

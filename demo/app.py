@@ -1,5 +1,5 @@
 """
-P4 Counterfactual Demo — Streamlit App
+Counterfactual Recommendation Demo — Streamlit App
 =======================================
 
 Interactive exploration of counterfactual recommendations on diabetes
@@ -30,7 +30,7 @@ import streamlit as st
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Make P4's src/ + demo/ importable
+# Make the project src/ + demo/ importable
 # ─────────────────────────────────────────────────────────────────────
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parent
@@ -373,7 +373,7 @@ st.sidebar.caption(
 # ─────────────────────────────────────────────────────────────────────
 st.title("Diabetes Risk — Counterfactual Recommendations")
 st.caption(
-    "P4 · Knowledge-Guided Constraint Compiler for Actionable CFs · BRFSS 2021"
+    "Knowledge-Guided Counterfactual Explanations · Directional Intervention Taxonomy · BRFSS 2021"
 )
 
 with st.expander(
@@ -669,8 +669,8 @@ if result is not None and result.get("ok"):
     st.caption(
         "Side-by-side best CF per method. The **audit-then-act** observation: "
         "three search strategies on the same patient can land on different "
-        "recommendations. This is the CF-family analogue of P2's "
-        "explanation-method agreement audit."
+        "recommendations. This mirrors a cross-method audit of "
+        "explanation-method agreement."
     )
 
     cols = st.columns(len(DICE_METHODS))

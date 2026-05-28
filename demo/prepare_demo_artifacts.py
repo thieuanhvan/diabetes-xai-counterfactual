@@ -1,7 +1,7 @@
 """
-One-time artifact preparation for the P4 demo.
+One-time artifact preparation for the demo.
 
-Reuses P4's own pipeline functions (no logic duplicated):
+Reuses the project's own pipeline functions (no logic duplicated):
     src.pipelines.data.loader.load_dataset
     src.pipelines.preprocessing.pipeline.get_train_test_split
     src.pipelines.models.xgb_train.train_xgb, XGBConfig
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--config",
         default=str(REPO_ROOT / "configs" / "default.yaml"),
-        help="P4 config YAML (default: configs/default.yaml)",
+        help="Pipeline config YAML (default: configs/default.yaml)",
     )
     p.add_argument(
         "--train-sample-size",
@@ -111,7 +111,7 @@ def main() -> int:
     args = parse_args()
 
     print("=" * 60)
-    print("P4 Demo Artifact Preparation")
+    print("Demo Artifact Preparation")
     print("=" * 60)
 
     # Load config
@@ -149,7 +149,7 @@ def main() -> int:
           f"prevalence = {y.mean():.4f}")
 
     # ────────────────────────────────────────────────────────────────
-    # Step 2: train/test split (matches P4 main.py)
+    # Step 2: train/test split (matches src/pipelines/main.py)
     # ────────────────────────────────────────────────────────────────
     print("[2/4] Stratified train/test split (80/20, seed=42)...")
     X_train, X_test, y_train, y_test = get_train_test_split(

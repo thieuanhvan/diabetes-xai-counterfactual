@@ -8,7 +8,7 @@ For each feature in the taxonomy, tally across all (query, CF) pairs:
 This complements aggregate actionability_score by exposing WHICH features
 contribute most to (lack of) actionability.
 
-Used by main.py for §4.4 per-feature breakdown table.
+Used by main.py to build the per-feature breakdown table.
 """
 from __future__ import annotations
 

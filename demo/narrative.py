@@ -2,7 +2,7 @@
 Narrative generation for counterfactual recommendations.
 
 Template-based, deterministic — runs offline (no LLM dependency) so the
-demo works at MAPR oral / thesis defense even without internet.
+demo works fully offline (no internet required).
 
 Strategy:
     1. Compute feature deltas (only features whose CF value differs from

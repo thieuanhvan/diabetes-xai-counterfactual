@@ -27,7 +27,7 @@ xgboost==3.2.0
 
 # Explainability
 dice-ml==0.12              # kdtree dtype bug — workaround in dice_runner.py
-shap==0.49.1               # not currently used in P4 pipeline; reserved for future TCAV
+shap==0.49.1               # not currently used in this pipeline; reserved for future TCAV
 
 # Configuration + I/O
 pyyaml==6.0.3
@@ -39,4 +39,4 @@ psutil==7.2.2              # used by §11.6 runtime.hardware capture
 matplotlib>=3.8,<4.0
 
 # Testing (dev only)
-pytest>=7.4,<9.0
+pytest>=7.4,<10.0

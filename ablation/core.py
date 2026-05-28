@@ -7,7 +7,7 @@ Three responsibilities:
 
 After each cell runs, snapshot outputs/*.csv + matching logs/run_*.json into
 outputs/_ablation_archive/<cell_name>/. This preserves per-cell data despite
-the "outputs/ overwrites each run" convention from §11.4. aggregate.py reads
+the "outputs/ overwrites each run" convention. aggregate.py reads
 from these archives, not from outputs/ directly.
 
 CONSTRAINT (read first):
@@ -23,8 +23,6 @@ config. Example:
         "xgboost": {"random_state": 42},
         "evaluate": {"compare_modes": True},
     })
-
-Per ablation_vi v2 §8 + Generalrule v38 §11.4/§11.5/§11.6.
 
 v4 (16/05/2026): added _snapshot_outputs() called after each pipeline run.
 Captures the 4 unprefixed CSVs in outputs/ + matching logs/run_*.json sidecar
@@ -52,7 +50,7 @@ LOGS_DIR = REPO_ROOT / "logs"
 OUTPUTS_DIR = REPO_ROOT / "outputs"
 ARCHIVE_ROOT = OUTPUTS_DIR / "_ablation_archive"
 
-# CSV files that the pipeline writes to outputs/ (no run_id prefix per §11.4).
+# CSV files that the pipeline writes to outputs/ (no run_id prefix).
 # Order matters: comparison.csv first so partial snapshots still have the
 # headline metrics if something fails mid-copy.
 SNAPSHOT_CSVS = (

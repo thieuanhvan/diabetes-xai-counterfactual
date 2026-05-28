@@ -1,5 +1,5 @@
 """
-Plotly visualizations for the P4 counterfactual demo.
+Plotly visualizations for the counterfactual demo.
 
 All figures are pure functions over the existing demo state — they read
 from the model + DataFrames and return go.Figure objects. No Streamlit

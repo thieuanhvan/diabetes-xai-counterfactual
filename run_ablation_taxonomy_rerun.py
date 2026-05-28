@@ -1,18 +1,19 @@
 """Rerun 3 taxonomy ablation cells at n=200 with bug-fixed scoring code.
 
-Right-click → Run trong PyCharm (no CLI args, no walk-up per §11.5).
+Right-click -> Run in PyCharm (no CLI args, no walk-up).
 
-Each cell auto-snapshots vào outputs/_ablation_archive/<cell_name>/, ghi đè
-snapshot cũ. 14 cells còn lại (class, n_cf, seed, method) không bị động vào —
-chúng vẫn ở trong _ablation_archive/ từ run trước (bug fix không hit các cells
-đó vì không trigger flag).
+Each cell auto-snapshots into outputs/_ablation_archive/<cell_name>/,
+overwriting the previous snapshot. The other 14 cells (class, n_cf, seed,
+method) are left untouched -- they remain in _ablation_archive/ from the
+previous run (the bug fix does not affect those cells because it is not
+triggered by their flags).
 
-Wall-clock estimate: ~30 min tổng (3 cells × ~10 min trên 8-core).
+Wall-clock estimate: ~30 min total (3 cells x ~10 min on an 8-core machine).
 
 Sequence:
-  1. taxonomy_5class            — sanity check (số phải khớp manuscript v5)
-  2. taxonomy_4class            — số sẽ đổi (actionability tăng, wrong_dir → 0)
-  3. taxonomy_3class_conservative — aggregate giữ nguyên, per_feature labels đổi
+  1. taxonomy_5class              — sanity check (numbers must match manuscript)
+  2. taxonomy_4class              — numbers change (actionability up, wrong_dir -> 0)
+  3. taxonomy_3class_conservative — aggregate unchanged, per_feature labels change
 """
 from __future__ import annotations
 
