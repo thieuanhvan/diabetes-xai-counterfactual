@@ -16,7 +16,7 @@ Equivalent to running manually:
 Cheap-first execution order matches run_ablation_all.py so that if any cell
 failed mid-grid, the cheapest aggregations surface first.
 
-Author: Thieu Anh Van (UIT VNU-HCM, MSHV 250104026)
+
 """
 import subprocess
 import sys
