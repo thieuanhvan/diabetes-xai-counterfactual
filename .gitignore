@@ -34,14 +34,16 @@ data/*
 # Scratch runs are auto-excluded via the _scratch_ marker.
 
 # logs/: keep authoritative run logs + configs, ignore scratch
-logs/*
+#logs/*
 !logs/.gitkeep
 !logs/run_[0-9]*.log
 !logs/run_[0-9]*.json
 logs/run_scratch_*
 
-# outputs/: keep data outputs + figures of the latest run (no run_id prefix)
-outputs/*
+_bk/*
+
+# outputs/: full tree committed for reviewer reproducibility
+#outputs/*
 !outputs/.gitkeep
 !outputs/*.csv
 !outputs/*.md
