@@ -44,7 +44,7 @@ _bk/*
 
 # outputs/: authoritative reference committed (archive/, external_2015/, _ablation_archive/, ablation_*_table.csv)
 # working runs go to outputs/scratch/ and are NOT committed
-outputs/scratch/
+#outputs/scratch/
 
 # Models
 *.pkl
