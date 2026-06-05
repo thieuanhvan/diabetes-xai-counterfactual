@@ -22,8 +22,9 @@ pip install -r requirements.txt
 python run_main.py
 ```
 
-Expected wall-clock: ~30 minutes on the reference hardware (Intel Core i7,
-8 logical cores, no GPU). Outputs land in `outputs/scratch/`. Compare the
+Expected wall-clock: ~60 minutes on the reference hardware (Intel Core i7,
+8 logical cores, no GPU; full run, both CF modes — see §5.1 for the
+per-stage breakdown). Outputs land in `outputs/scratch/`. Compare the
 numerical values against the "Expected numerical outputs" tables below, or
 diff directly against the frozen authoritative snapshot at
 `outputs/archive/manuscript/`.
@@ -148,7 +149,22 @@ Outputs land in `outputs/scratch/`:
 `{comparison,global_cf_metrics,perquery_cf_metrics,per_feature}.csv` and
 `fig_*.{png,pdf}`.
 
-### 5.2 Ablations
+### 5.2 External validation (BRFSS 2015)
+
+```bash
+python analysis/run_external_validation_brfss2015.py
+```
+
+Trains XGBoost on BRFSS 2021 (identical seed and hyperparameters as the
+baseline) and applies the trained classifier directly to BRFSS 2015 without
+recalibration, then generates counterfactuals on the top-200 high-risk
+BRFSS 2015 patients in both modes. Output: `outputs/external_2015/`. This is
+a tracked directory, so verify reproduction with `git diff
+outputs/external_2015/` — it should report no changes. Wall-clock ~9 min.
+Expected headline numbers (manuscript Section 4.4, Table 5): external AUC
+0.8269, per-query wrong-direction violation rate 0.0000.
+
+### 5.3 Ablations
 
 ```bash
 python run_ablation_all.py
@@ -198,14 +214,14 @@ and pinned versions).
 
 | Quantity | Expected value |
 |---|---|
-| Validity | 0.752 |
-| Proximity ($L_1$) | 1.397 |
-| Sparsity | 0.067 |
-| Diversity | 15.194 |
-| Plausibility ($k$=50) | 4.299 |
+| Validity | 0.7520 |
+| Proximity ($L_1$) | 1.3966 |
+| Sparsity | 0.0671 |
+| Diversity | 15.1938 |
+| Plausibility ($k$=50) | 4.2989 |
 | **Actionability** | **0.6655** |
-| Wrong-direction violation rate | 0.435 |
-| Immutable violation rate | 0.000 |
+| Wrong-direction violation rate | 0.4350 |
+| Immutable violation rate | 0.0000 |
 
 ### 6.3 CF metrics — per-query mode
 
@@ -213,14 +229,14 @@ and pinned versions).
 
 | Quantity | Expected value |
 |---|---|
-| Validity | 0.808 |
-| Proximity ($L_1$) | 1.471 |
-| Sparsity | 0.072 |
-| Diversity | 14.710 |
-| Plausibility ($k$=50) | 4.030 |
+| Validity | 0.8080 |
+| Proximity ($L_1$) | 1.4710 |
+| Sparsity | 0.0723 |
+| Diversity | 14.7095 |
+| Plausibility ($k$=50) | 4.0297 |
 | **Actionability** | **0.9880** |
-| Wrong-direction violation rate | 0.000 |
-| Immutable violation rate | 0.000 |
+| Wrong-direction violation rate | 0.0000 |
+| Immutable violation rate | 0.0000 |
 
 Total CF changes across all features: **1,411 (global) → 1,520 (per-query, +7.7%)**.
 Verify via `outputs/archive/manuscript/per_feature.csv` by summing
@@ -255,8 +271,8 @@ A successful reproduction shows zero diff (deterministic pipeline). The
 key headline values to verify:
 
 - AUC == 0.8233 (exact match)
-- Per-query actionability == 0.988 (exact match)
-- Per-query wrong-direction violation rate == 0.000 (exact match)
+- Per-query actionability == 0.9880 (exact match)
+- Per-query wrong-direction violation rate == 0.0000 (exact match)
 - Three Pattern (a) features all show 100% / 0 split
 
 If any value drifts beyond the multi-seed CV reported in §4.7.1 of the
@@ -299,9 +315,12 @@ columns recast to float64 in `DiCE Data` constructor). See README §Known
 issues for the upstream issue references.
 
 **Out-of-memory during ablations.** The ablation grids serialise to disk
-between runs but still hold the test set + XGBoost model in memory. On a
-16 GB machine, run the grids one at a time
-(`python run_ablation_<type>.py`) instead of `run_ablation_all.py`.
+between runs but still hold the test set + XGBoost model in memory. The
+per-cell results are already provided under `outputs/_ablation_archive/`, so
+re-running the full grid is not required to verify the ablation numbers. If
+you do re-run on a 16 GB machine, run `run_ablation_all.py` alone (close
+other applications), or re-run only the specific cells of interest via the
+utility scripts `ablation_taxonomy_rerun.py` and `ablation_method_kdtree.py`.
 
 **Wall-clock far exceeds the ≈63-minute estimate.** Confirm
 `tree_method='hist'` is in effect (XGBoost defaults to `exact` on some

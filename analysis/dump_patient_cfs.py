@@ -9,9 +9,10 @@ under each mode --- with the wrong-direction recommendations under global mode
 shown side-by-side with the taxonomy-corrected per-query CFs.
 
 Run:    python analysis/dump_patient_cfs.py
-Output: outputs/patient_cfs_example.csv (rows: baseline + 5 global CFs + 5
-        per-query CFs for each of the K selected patients) and a small
-        markdown summary printed to stdout.
+Output: <output_dir>/patient_cfs_example.csv  (output_dir from
+        configs/default.yaml, default outputs/scratch/; rows: baseline +
+        5 global CFs + 5 per-query CFs for each of the K selected patients)
+        and a small markdown summary printed to stdout.
 Wall-clock: ~30-60 seconds (K=3 patients, both modes).
 
 This wrapper lives at <repo>/analysis/, so the repo root resolves to its
@@ -173,7 +174,7 @@ def main() -> None:
 
     # Read the existing global-mode per-patient summary to identify the K
     # patients with the highest wrong-direction violations.
-    summary_path = REPO_ROOT / "outputs" / "global_cf_metrics.csv"
+    summary_path = Path(_resolve_repo_path(cfg["paths"]["output_dir"])) / "global_cf_metrics.csv"
     if not summary_path.exists():
         raise FileNotFoundError(
             f"Not found: {summary_path}. "
@@ -251,7 +252,7 @@ def main() -> None:
                 ))
 
     out_df = pd.DataFrame(rows)
-    out_path = REPO_ROOT / "outputs" / "patient_cfs_example.csv"
+    out_path = Path(_resolve_repo_path(cfg["paths"]["output_dir"])) / "patient_cfs_example.csv"
     out_df.to_csv(out_path, index=False)
 
     log.info("=" * 60)

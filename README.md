@@ -9,7 +9,7 @@ Generates counterfactual explanations (CFs) for high-risk patients in BRFSS 2021
 - **Global** mode — DiCE with a single `features_to_vary` list applied to every query. The list already excludes four immutable features (Age, Sex, prior Stroke, prior HeartDiseaseorAttack), so the comparison isolates the directional refinement from the standard immutable exclusion present in current CF tooling.
 - **Per-query** mode — taxonomy-derived `features_to_vary` + `permitted_range` per patient, layered on the same immutable exclusion.
 
-Per-query mode improves actionability score from 0.666 → 0.988 (+48.5% relative) with zero wrong-direction and zero immutable-feature violations on BRFSS 2021.
+Per-query mode improves actionability score from 0.6655 → 0.9880 (+48.5% relative) with zero wrong-direction and zero immutable-feature violations on BRFSS 2021.
 
 ## Quick start
 
@@ -25,12 +25,12 @@ source .venv/bin/activate          # Linux/macOS
 pip install -r requirements.txt
 ```
 
-The BRFSS 2021 and BRFSS 2015 cleaned cohorts are bundled in the same archive under `data/` (`data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`). See `data/README.md` for the schema and `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
+The pipeline expects `data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`. If you received the reviewer archive through the submission portal, these cohorts are included under `data/`. If you cloned the public GitHub repository, the CSV files are **not** committed (the CDC release remains authoritative) — obtain them following `data/README.md`. See `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
 
 ## Reproduction entry points (run in this order)
 
 1. `python run_main.py`        — START HERE. Reproduces the headline results
-                                  (Tables 6 and 7) plus figures. ~10 min.
+                                  (Tables 6 and 7) plus figures. ~60 min.
 2. `python analysis/run_external_validation_brfss2015.py`
                                 — External validation (Table 5). ~9 min.
 3. `python run_ablation_all.py` — All 5 ablation grids (Section 4.7 +
@@ -62,10 +62,10 @@ Expected key metrics from the authoritative reference (`outputs/archive/manuscri
 | Metric | Global | Per-query |
 |---|---|---|
 | Classifier AUC (test) | 0.8233 | 0.8233 |
-| Validity | 0.752 | 0.808 |
+| Validity | 0.7520 | 0.8080 |
 | Actionability score | 0.6655 | 0.9880 |
-| Wrong-direction violations | 0.435 | 0.000 |
-| Immutable violations | 0.000 | 0.000 |
+| Wrong-direction violations | 0.4350 | 0.0000 |
+| Immutable violations | 0.0000 | 0.0000 |
 
 ## Reproduce the baseline run
 
@@ -79,7 +79,7 @@ Outputs (scratch space — overwritten on each run):
 - `outputs/scratch/{comparison,global_cf_metrics,perquery_cf_metrics,per_feature}.csv` — current run results.
 - `outputs/scratch/fig_*.{png,pdf}` and `topk_violations.{csv,md}` — analysis outputs.
 
-Expected wall-clock: ~30 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU.
+Expected wall-clock: ~60 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU (full run, both CF modes; per-stage breakdown in `REPRODUCIBILITY.md` §5.1).
 
 To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.7.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
 
@@ -91,7 +91,7 @@ See `REPRODUCIBILITY.md` for the full expected-output table and verification com
 python analysis/run_external_validation_brfss2015.py
 ```
 
-Trains on BRFSS 2021 (identical seed and hyperparameters as the baseline run), applies the trained classifier directly to BRFSS 2015 without recalibration, and generates counterfactuals on the top-200 high-risk BRFSS 2015 patients under both modes. Output: `outputs/external_2015/`. Wall-clock ~5–9 min. Headline numbers (external AUC 0.827, per-query wrong-direction violations 0.000) match manuscript Section 4.4, Table 5.
+Trains on BRFSS 2021 (identical seed and hyperparameters as the baseline run), applies the trained classifier directly to BRFSS 2015 without recalibration, and generates counterfactuals on the top-200 high-risk BRFSS 2015 patients under both modes. Output: `outputs/external_2015/`. Wall-clock ~9 min. Headline numbers (external AUC 0.8269, per-query wrong-direction violations 0.0000) match manuscript Section 4.4, Table 5.
 
 ## Reproduce the ablation studies
 
@@ -134,7 +134,7 @@ diabetes-xai-counterfactual/
 ├── run_ablation_aggregate.py      # aggregate 5 ablation tables
 ├── requirements.txt               # pinned versions for reproducibility
 ├── configs/default.yaml           # pipeline config (deterministic, seed=42)
-├── data/                          # BRFSS 2021 + 2015 cohorts (bundled; see data/README.md)
+├── data/                          # BRFSS 2021 + 2015 cohorts (reviewer archive only; not committed — see data/README.md)
 ├── src/
 │   ├── pipelines/
 │   │   ├── data/loader.py         # BRFSS 21-feature schema
@@ -181,7 +181,7 @@ Upstream issue: `dice-ml` GitHub #423 / #445 (not yet patched as of v0.12).
 
 ## Dataset
 
-BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence) for training and internal evaluation; BRFSS 2015 (n = 253,680) for cross-year external validation. The cleaned slices follow the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Both cohorts are bundled in this archive under `data/`. The full cleaning trail from the original CDC `LLCP*.XPT` source files is documented in `data/PROVENANCE.md`.
+BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence) for training and internal evaluation; BRFSS 2015 (n = 253,680) for cross-year external validation. The cleaned slices follow the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Both cohorts are included under `data/` in the reviewer archive; in the public repository they are not committed and are obtained per `data/README.md`. The full cleaning trail from the original CDC `LLCP*.XPT` source files is documented in `data/PROVENANCE.md`.
 
 See `data/README.md` for the schema and acquisition routes, and `REPRODUCIBILITY.md` for the runtime environment specification.
 
