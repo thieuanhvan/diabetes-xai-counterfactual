@@ -1,0 +1,25 @@
+{
+  "cell_name": "taxonomy_3class_conservative",
+  "run_id": "run_20260517_1709",
+  "ablation_type": "taxonomy",
+  "notes_kv": {
+    "compare_modes": "True",
+    "method": "random",
+    "sample_n": "None",
+    "n_queries": "200",
+    "validity[g": "0.7750|pq=0.8300]",
+    "actionability[g": "0.6615|pq=0.9840]",
+    "AUC": "0.8233",
+    "ablation": "taxonomy",
+    "taxonomy_n_classes": "3",
+    "variant": "conservative"
+  },
+  "snapshot_timestamp_vn": "2026-05-17T17:16:39.297823+07:00",
+  "csvs_present": [
+    "comparison.csv",
+    "perquery_cf_metrics.csv",
+    "global_cf_metrics.csv",
+    "per_feature.csv"
+  ],
+  "config_present": true
+}
