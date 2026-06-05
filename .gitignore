@@ -54,3 +54,4 @@ _bk/*
 *.pkl
 *.joblib
 *.json.gz
+/_bk/
