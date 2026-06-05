@@ -30,7 +30,7 @@ The pipeline expects `data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diab
 ## Reproduction entry points (run in this order)
 
 1. `python run_main.py`        — START HERE. Reproduces the headline results
-                                  (Tables 6 and 7) plus figures. ~60 min.
+                                  (Tables 6 and 7) plus figures. ~8 min.
 2. `python analysis/run_external_validation_brfss2015.py`
                                 — External validation (Table 5). ~9 min.
 3. `python run_ablation_all.py` — All 5 ablation grids (Section 4.7 +
@@ -57,7 +57,7 @@ outputs/archive/manuscript/
 └── manifest.json
 ```
 
-Expected key metrics from the authoritative reference (`outputs/archive/manuscript/comparison.csv`, sourced from the `class_general` cell of the ablation grid, run_id `run_20260517_1716`):
+Expected key metrics from the frozen authoritative reference (`outputs/archive/manuscript/comparison.csv`; full provenance — versions, seed, hardware — recorded in its accompanying `config.json`):
 
 | Metric | Global | Per-query |
 |---|---|---|
@@ -79,7 +79,7 @@ Outputs (scratch space — overwritten on each run):
 - `outputs/scratch/{comparison,global_cf_metrics,perquery_cf_metrics,per_feature}.csv` — current run results.
 - `outputs/scratch/fig_*.{png,pdf}` and `topk_violations.{csv,md}` — analysis outputs.
 
-Expected wall-clock: ~60 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU (full run, both CF modes; per-stage breakdown in `REPRODUCIBILITY.md` §5.1).
+Expected wall-clock: ~8 minutes on Intel i7 Ice Lake 8-core, 32 GB RAM, no GPU (full run, both CF modes; per-stage breakdown in `REPRODUCIBILITY.md` §5.1).
 
 To verify reproduction, compare `outputs/scratch/comparison.csv` against `outputs/archive/manuscript/comparison.csv`. The two should match to within the multi-seed variance reported in Section 4.7.1 of the manuscript (CV ≤ 0.7% on validity, ≤ 0.7% on actionability across 5 seeds).
 

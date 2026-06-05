@@ -1,5 +1,5 @@
 # requirements.txt — pinned for reproducibility
-# Versions match outputs/run_20260515_2144.json (authoritative ablation run).
+# Pinned versions, tested on Python 3.12.10.
 # Python 3.12.10 on Windows 10 / Ubuntu 22.04.
 #
 # Tested with these exact versions:

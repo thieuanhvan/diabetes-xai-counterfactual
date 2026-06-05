@@ -22,7 +22,7 @@ pip install -r requirements.txt
 python run_main.py
 ```
 
-Expected wall-clock: ~60 minutes on the reference hardware (Intel Core i7,
+Expected wall-clock: ~8 minutes on the reference hardware (Intel Core i7,
 8 logical cores, no GPU; full run, both CF modes — see §5.1 for the
 per-stage breakdown). Outputs land in `outputs/scratch/`. Compare the
 numerical values against the "Expected numerical outputs" tables below, or
@@ -137,12 +137,12 @@ Expected wall-clock breakdown on the reference hardware (full BRFSS 2021,
 
 | Stage | Wall-clock |
 |---|---|
-| Data load + preprocessing | ≈10 s |
-| XGBoost training | ≈10 s |
-| Global CF generation (200 queries × 5 CFs) | ≈29 min |
-| Per-query CF generation (200 queries × 5 CFs) | ≈33 min |
+| Data load + preprocessing | ≈1 s |
+| XGBoost training | ≈5 s |
+| Global CF generation (200 queries × 5 CFs) | ≈3.5 min |
+| Per-query CF generation (200 queries × 5 CFs) | ≈3.5 min |
 | Scoring + analysis | ≈30 s |
-| **Total** | **≈63 min** |
+| **Total** | **≈8 min** |
 
 Outputs land in `outputs/scratch/`:
 `run_<YYYYMMDD_HHMM>.{log,json}` sidecar pair plus
@@ -192,9 +192,9 @@ rerunning.
 
 ## 6. Expected numerical outputs
 
-The authoritative reference run is `run_20260517_1716` (`ablation=class`
-cell `class_general`, the main experimental configuration). Its full output
-set is frozen at `outputs/archive/manuscript/`. Values below are the
+The single frozen authoritative reference is at `outputs/archive/manuscript/`
+(the main experimental configuration; full provenance — exact versions, seed,
+hardware — recorded in its `config.json`). Values below are the
 headline numbers reported in the manuscript. Reproduction should match to
 all displayed decimal places (deterministic pipeline given identical seed
 and pinned versions).
@@ -267,8 +267,7 @@ diff outputs/scratch/comparison.csv outputs/archive/manuscript/comparison.csv
 diff outputs/scratch/per_feature.csv outputs/archive/manuscript/per_feature.csv
 ```
 
-A successful reproduction shows zero diff (deterministic pipeline). The
-key headline values to verify:
+A successful reproduction shows zero diff (deterministic pipeline). **On Windows a fresh run writes CRLF line endings while the committed reference is LF**, so a plain `diff` may report every line as changed even when the numbers are identical; compare ignoring line endings instead — e.g. `diff --strip-trailing-cr ...` (Git Bash) or `git diff --no-index --ignore-cr-at-eol ...`. The key headline values to verify:
 
 - AUC == 0.8233 (exact match)
 - Per-query actionability == 0.9880 (exact match)
@@ -322,7 +321,7 @@ you do re-run on a 16 GB machine, run `run_ablation_all.py` alone (close
 other applications), or re-run only the specific cells of interest via the
 utility scripts `ablation_taxonomy_rerun.py` and `ablation_method_kdtree.py`.
 
-**Wall-clock far exceeds the ≈63-minute estimate.** Confirm
+**Wall-clock far exceeds the ≈8-minute estimate.** Confirm
 `tree_method='hist'` is in effect (XGBoost defaults to `exact` on some
 installations). Confirm matplotlib backend is not opening interactive
 windows that block the run. Confirm `configs/default.yaml: data.sample_n`
@@ -330,8 +329,9 @@ is `null` (full dataset) rather than left at a dev value.
 
 ## 10. Provenance
 
-Authoritative reference run: `run_20260517_1716`. Its frozen snapshot is at
-`outputs/archive/manuscript/`. The accompanying `config.json` records:
+The single authoritative reference is the frozen snapshot at
+`outputs/archive/manuscript/`. Its accompanying `config.json` records the full
+provenance:
 
 - Exact library versions present at the time of authoritative-run execution
 - Hardware capture (CPU model, core count, RAM, OS)
