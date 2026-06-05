@@ -42,13 +42,9 @@ logs/run_scratch_*
 
 _bk/*
 
-# outputs/: full tree committed for reviewer reproducibility
-#outputs/*
-!outputs/.gitkeep
-!outputs/*.csv
-!outputs/*.md
-!outputs/fig_*.png
-!outputs/fig_*.pdf
+# outputs/: authoritative reference committed (archive/, external_2015/, _ablation_archive/, ablation_*_table.csv)
+# working runs go to outputs/scratch/ and are NOT committed
+outputs/scratch/
 
 # Models
 *.pkl
