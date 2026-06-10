@@ -134,7 +134,7 @@ def generate(
     )
     ax1.bar(
         [i + bar_width / 2 for i in x], perq_viol, bar_width,
-        label='Per-query (P4 directional taxonomy)',
+        label='Per-query (directional taxonomy)',
         color='#388e3c', edgecolor='black', linewidth=0.5,
     )
 
