@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pandas as pd
 
-ART = "outputs-submit-ijmi"                 # authoritative submit artifacts
+ART = "outputs"                 # authoritative submit artifacts
 MAIN = os.path.join(ART, "_ablation_archive", "taxonomy_5class")  # main 5-class run
 EXT = os.path.join(ART, "external_2015")
 N_BOOT = 1000
