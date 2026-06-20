@@ -195,6 +195,9 @@ See `data/README.md` for the schema and acquisition routes, and `REPRODUCIBILITY
   note   = {Manuscript under peer review}
 }
 ```
+Van Thieu, Knowledge-guided counterfactual explanations for diabetes risk
+decision support: A directional intervention taxonomy, International Journal of
+Medical Informatics (2026). https://doi.org/10.1016/j.ijmedinf.2026.106555
 
 ## License
 
