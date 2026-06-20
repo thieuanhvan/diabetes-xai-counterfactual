@@ -188,11 +188,12 @@ See `data/README.md` for the schema and acquisition routes, and `REPRODUCIBILITY
 ## Citation
 
 ```bibtex
-@unpublished{thieu2026p4,
-  title  = {Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy},
-  author = {Van Thieu},
-  year   = {2026},
-  note   = {Manuscript under peer review}
+@article{thieu2026kgcf,
+  title   = {Knowledge-guided counterfactual explanations for diabetes risk decision support: A directional intervention taxonomy},
+  author  = {Thieu, Van},
+  journal = {International Journal of Medical Informatics},
+  year    = {2026},
+  doi     = {10.1016/j.ijmedinf.2026.106555}
 }
 ```
 Van Thieu, Knowledge-guided counterfactual explanations for diabetes risk
@@ -201,7 +202,7 @@ Medical Informatics (2026). https://doi.org/10.1016/j.ijmedinf.2026.106555
 
 ## License
 
-Source code: MIT (planned, finalized at publication).
+Source code: MIT License — see [LICENSE](LICENSE).
 
 BRFSS 2021 and 2015 microdata are publicly released by the U.S. Centers for Disease Control and Prevention under U.S. federal public-domain terms. The cleaned processed cohorts used here are redistributed with full attribution to CDC and remain subject to the CDC public-use terms of the original release; no additional license is asserted over the underlying data.
 
