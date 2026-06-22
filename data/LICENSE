@@ -1,0 +1,19 @@
+CC0 1.0 Universal (Public Domain Dedication)
+
+The cleaned BRFSS processed cohorts in this directory
+(cdc_brfss_diabetes_2021.csv, cdc_brfss_diabetes_2015.csv) are dedicated to the
+public domain under the Creative Commons CC0 1.0 Universal Public Domain
+Dedication.
+
+To the extent possible under law, Van Thieu has waived all copyright and related
+or neighboring rights to these processed cohorts. You can copy, modify,
+distribute, and use them, even for commercial purposes, without asking
+permission.
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Summary (deed):  https://creativecommons.org/publicdomain/zero/1.0/
+
+Provenance: these cohorts are derived from U.S. CDC BRFSS public-use files
+(LLCP2021.XPT, LLCP2015.XPT), which are in the U.S. federal public domain. The
+derivation steps are documented in data/PROVENANCE.md. Attribution to CDC is
+retained as the authoritative upstream source.

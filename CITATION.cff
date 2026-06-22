@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the associated article."
+title: "Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"
+authors:
+  - family-names: "Thieu"
+    given-names: "Van"
+    orcid: "https://orcid.org/0009-0003-9637-0195"
+repository-code: "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
+license: MIT
+preferred-citation:
+  type: article
+  title: "Knowledge-guided counterfactual explanations for diabetes risk decision support: A directional intervention taxonomy"
+  authors:
+    - family-names: "Thieu"
+      given-names: "Van"
+      orcid: "https://orcid.org/0009-0003-9637-0195"
+  journal: "International Journal of Medical Informatics"
+  year: 2026
+  doi: "10.1016/j.ijmedinf.2026.106555"
