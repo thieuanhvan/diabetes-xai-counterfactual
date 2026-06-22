@@ -1,6 +1,6 @@
 # diabetes-xai-counterfactual
 
-Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"* (manuscript under peer review).
+Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"*, accepted for publication in *International Journal of Medical Informatics* (DOI: [10.1016/j.ijmedinf.2026.106555](https://doi.org/10.1016/j.ijmedinf.2026.106555)).
 
 ## What this does
 
@@ -204,7 +204,7 @@ Medical Informatics (2026). https://doi.org/10.1016/j.ijmedinf.2026.106555
 
 Source code: MIT License — see [LICENSE](LICENSE).
 
-BRFSS 2021 and 2015 microdata are publicly released by the U.S. Centers for Disease Control and Prevention under U.S. federal public-domain terms. The cleaned processed cohorts used here are redistributed with full attribution to CDC and remain subject to the CDC public-use terms of the original release; no additional license is asserted over the underlying data.
+Data: the underlying BRFSS 2021 and 2015 microdata are released by the U.S. Centers for Disease Control and Prevention (CDC) under U.S. federal public-domain terms. The cleaned processed cohorts derived here are dedicated to the public domain under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/), consistent with the public-domain status of the CDC source; attribution to CDC is retained — see `data/PROVENANCE.md`.
 
 ## Contact
 
