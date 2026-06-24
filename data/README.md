@@ -1,11 +1,11 @@
 # data/
 
-This directory holds the cleaned BRFSS cohorts used by the pipeline. In the
-public GitHub repository the CSV files are excluded by `.gitignore` (the CDC
-source remains the authoritative version); in the reviewer archive distributed
-through the journal submission portal, both cohorts are bundled here directly.
+This directory holds the cleaned BRFSS cohorts used by the pipeline. Both
+cohorts are committed here directly under a CC0-1.0 public-domain dedication
+(see `data/LICENSE`), consistent with the public-domain status of the CDC
+source; the upstream CDC release remains the authoritative version.
 
-## Required files
+## Files
 
 ```
 data/cdc_brfss_diabetes_2021.csv   # training + internal evaluation
@@ -32,14 +32,11 @@ change between waves). Tree-based classifiers handle out-of-range predictor
 values without extrapolation, so the encoding shift does not break inference;
 it is documented for transparency and discussed in manuscript Section 4.4.
 
-## How to obtain
+## Reproducing the cohorts from the CDC source
 
-Both cohorts are bundled in the reviewer archive under this `data/` directory,
-so no acquisition step is needed to reproduce the results. The routes below
-document how the cohorts were derived, for full transparency and for anyone
-working from the public GitHub repository where the CSVs are gitignored.
-
-### Route A — original CDC source + cleaning toolkit (authoritative)
+The cleaned CSVs above are committed directly, so no acquisition step is needed
+to run the pipeline. The route below documents how they were derived from the
+original CDC files, for full transparency and independent reproduction.
 
 **BRFSS 2021:**
 1. Download the BRFSS 2021 raw file from CDC:
@@ -61,25 +58,11 @@ working from the public GitHub repository where the CSVs are gitignored.
 The cleaned CSVs are byte-identical regardless of who runs the cleaning, given
 the same CDC source files.
 
-### Route B — companion Kaggle dataset (after publication)
+## License and CDC BRFSS terms
 
-A companion Kaggle dataset bundling the cleaned 2015 / 2021 / 2023 slices with
-a `provenance.json` describing every cleaning step is planned for public
-release alongside this paper's acceptance. The dataset is not yet public during
-peer review; the bundled CSVs in this archive are the canonical reviewer copy.
-
-## Peer-review access
-
-For this manuscript's peer review (International Journal of Medical
-Informatics), both cleaned cohorts are bundled in the reviewer archive
-distributed through the submission portal. If a reviewer prefers the original
-CDC source plus the cleaning trail instead of the bundled CSVs, the full
-derivation is in `data/PROVENANCE.md` and reproduces byte-identical cohorts
-from the public CDC `LLCP*.XPT` files.
-
-## CDC BRFSS Terms of Use
-
-BRFSS is a CDC public-release dataset distributed under the CDC public-domain
-notice. Redistribution is permitted but the upstream CDC source is treated as
-the authoritative version. `data/PROVENANCE.md` documents every transformation
-between the upstream XPT and the cleaned CSV.
+The processed cohorts in this directory are dedicated to the public domain
+under CC0-1.0 (`data/LICENSE`). BRFSS is a CDC public-release dataset under the
+CDC public-domain notice; redistribution is permitted, and the upstream CDC
+source is treated as the authoritative version. `data/PROVENANCE.md` documents
+every transformation between the upstream `LLCP*.XPT` files and the cleaned
+CSVs. Attribution to CDC's BRFSS as the original source is retained.
