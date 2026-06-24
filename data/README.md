@@ -16,15 +16,19 @@ Schema (identical for both cohorts): 21 features + `Diabetes_binary` target.
 - BRFSS 2021: n = 236,378 records, 14.20% diabetes prevalence
 - BRFSS 2015: n = 253,680 records, 13.93% diabetes prevalence
 
-Features follow the julnazz/Teboul Kaggle convention. Expected column order
-(`Diabetes_binary` last):
+Features follow the julnazz/Teboul Kaggle convention. Actual column order
+(`Diabetes_binary` first):
 
 ```
-HighBP, HighChol, CholCheck, BMI, Smoker, Stroke, HeartDiseaseorAttack,
-PhysActivity, Fruits, Veggies, HvyAlcoholConsump, AnyHealthcare, NoDocbcCost,
-GenHlth, MentHlth, PhysHlth, DiffWalk, Sex, Age, Education, Income,
-Diabetes_binary
+Diabetes_binary, HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+HeartDiseaseorAttack, PhysActivity, Fruits, Veggies, HvyAlcoholConsump,
+AnyHealthcare, NoDocbcCost, GenHlth, MentHlth, PhysHlth, DiffWalk, Sex, Age,
+Education, Income
 ```
+
+The loader selects columns by name (`TARGET_COL = "Diabetes_binary"`), so the
+physical column order is not load-bearing for the pipeline; the order above
+documents the committed CSVs.
 
 One schema caveat between waves: the `Income` feature is encoded on a 1–11
 scale in BRFSS 2021 and a 1–8 scale in BRFSS 2015 (CDC survey instrument
