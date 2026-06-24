@@ -13,9 +13,10 @@ Per-query mode improves actionability score from 0.6655 → 0.9880 (+48.5% relat
 
 ## Quick start
 
-This repository is provided as a zip archive through the journal submission portal. After extracting the archive:
+Clone the public repository:
 
 ```bash
+git clone https://github.com/thieuanhvan/diabetes-xai-counterfactual.git
 cd diabetes-xai-counterfactual
 
 python -m venv .venv
@@ -25,7 +26,7 @@ source .venv/bin/activate          # Linux/macOS
 pip install -r requirements.txt
 ```
 
-The pipeline expects `data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`. If you received the reviewer archive through the submission portal, these cohorts are included under `data/`. If you cloned the public GitHub repository, the CSV files are **not** committed (the CDC release remains authoritative) — obtain them following `data/README.md`. See `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
+The pipeline expects `data/cdc_brfss_diabetes_2021.csv` and `data/cdc_brfss_diabetes_2015.csv`. Both cleaned cohorts are committed under `data/` (CC0-1.0; see `data/LICENSE`), so no acquisition step is needed. See `data/PROVENANCE.md` for the full cleaning trail from the original CDC source files.
 
 ## Reproduction entry points (run in this order)
 
@@ -134,7 +135,7 @@ diabetes-xai-counterfactual/
 ├── run_ablation_aggregate.py      # aggregate 5 ablation tables
 ├── requirements.txt               # pinned versions for reproducibility
 ├── configs/default.yaml           # pipeline config (deterministic, seed=42)
-├── data/                          # BRFSS 2021 + 2015 cohorts (reviewer archive only; not committed — see data/README.md)
+├── data/                          # BRFSS 2021 + 2015 cohorts (committed, CC0 — see data/README.md)
 ├── src/
 │   ├── pipelines/
 │   │   ├── data/loader.py         # BRFSS 21-feature schema
@@ -181,9 +182,9 @@ Upstream issue: `dice-ml` GitHub #423 / #445 (not yet patched as of v0.12).
 
 ## Dataset
 
-BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence) for training and internal evaluation; BRFSS 2015 (n = 253,680) for cross-year external validation. The cleaned slices follow the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Both cohorts are included under `data/` in the reviewer archive; in the public repository they are not committed and are obtained per `data/README.md`. The full cleaning trail from the original CDC `LLCP*.XPT` source files is documented in `data/PROVENANCE.md`.
+BRFSS 2021 (n = 236,378 records, 21 features, 14.20% diabetes prevalence) for training and internal evaluation; BRFSS 2015 (n = 253,680) for cross-year external validation. The cleaned slices follow the julnazz/Teboul Kaggle convention with `Diabetes_binary` as target. Both cohorts are committed under `data/` (CC0-1.0; see `data/LICENSE`). The full cleaning trail from the original CDC `LLCP*.XPT` source files is documented in `data/PROVENANCE.md`.
 
-See `data/README.md` for the schema and acquisition routes, and `REPRODUCIBILITY.md` for the runtime environment specification.
+See `data/README.md` for the schema and derivation routes, and `REPRODUCIBILITY.md` for the runtime environment specification.
 
 ## Citation
 
