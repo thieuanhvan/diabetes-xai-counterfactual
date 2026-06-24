@@ -2,9 +2,9 @@
 
 This document records the derivation of the cleaned cohorts
 `cdc_brfss_diabetes_2021.csv` and `cdc_brfss_diabetes_2015.csv` from the
-original CDC source files. It exists so that the cohorts bundled in the
-reviewer archive can be independently regenerated from public CDC data without
-relying on any private repository.
+original CDC source files. It exists so that the cohorts committed under
+`data/` can be independently regenerated from the public CDC data, with the CDC
+source treated as the authoritative upstream.
 
 The cleaning follows the widely-used "diabetes health indicators" convention
 popularised by the public Kaggle dataset of A. Teboul (julnazz-style), which
@@ -84,7 +84,7 @@ The following transformations convert the raw `LLCP<year>.XPT` into the cleaned
    difference is documented in `data/README.md` and manuscript Section 4.4. The
    tree-based classifier handles the scale difference without extrapolation.
 
-7. **Order columns** with `Diabetes_binary` last, write to
+7. **Order columns** with `Diabetes_binary` first, write to
    `cdc_brfss_diabetes_<year>.csv` (UTF-8, comma-separated, no index column).
 
 ## 3. Sanity-check values

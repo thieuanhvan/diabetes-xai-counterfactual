@@ -3,7 +3,7 @@
 This document specifies the exact environment, data, seeds and expected
 numerical outputs needed to reproduce the results reported in
 *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision
-Support: A Directional Intervention Taxonomy"* (manuscript under peer review).
+Support: A Directional Intervention Taxonomy"* (accepted, International Journal of Medical Informatics, 2026; DOI 10.1016/j.ijmedinf.2026.106555).
 
 Companion file `README.md` is the high-level entry point; this file is the
 rigorous step-by-step for reviewers and future maintainers.
@@ -11,14 +11,13 @@ rigorous step-by-step for reviewers and future maintainers.
 ## TL;DR
 
 ```bash
-# Extract the reviewer archive provided through the submission portal, then:
+# Clone the public repository, then:
+git clone https://github.com/thieuanhvan/diabetes-xai-counterfactual.git
 cd diabetes-xai-counterfactual
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# If using the bundled reviewer archive, the cohorts are already in data/.
-
-# If cloning the public repo, place cdc_brfss_diabetes_2021.csv into data/ — see data/README.md
+# The two cohorts are committed under data/ (CC0-1.0) — no acquisition step needed.
 python run_main.py
 ```
 
@@ -59,7 +58,7 @@ handling, which uses `pathlib` throughout.
 
 See `data/README.md`. The pipeline expects `data/cdc_brfss_diabetes_2021.csv`
 with the 21-feature julnazz/Teboul schema and `Diabetes_binary` as target
-column. Data files are not committed (CDC source remains authoritative).
+column. Both cohorts are committed under data/ (CC0-1.0; the CDC source remains the authoritative upstream).
 
 Expected dataset properties (sanity check):
 
