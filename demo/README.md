@@ -43,9 +43,9 @@ App opens at <http://localhost:8501>.
 demo/
 ├── app.py                       # Streamlit entry point
 ├── prepare_demo_artifacts.py    # One-time artifact prep (reuses the project pipeline)
-├── narrative.py                 # Template-based CF → text (Phase 3)
-├── visualizations.py            # Plotly gauges + bar chart + waterfall (Phase 4)
-├── presets.py                   # Phase 5 — archetypal patient cache
+├── narrative.py                 # Template-based CF → text
+├── visualizations.py            # Plotly gauges + bar chart + waterfall
+├── presets.py                   # Archetypal patient cache
 ├── models/                      # Generated artifacts (gitignored except .gitkeep)
 │   ├── xgb_brfss2021.joblib
 │   ├── X_train_sample.parquet
@@ -72,4 +72,4 @@ demo/
 ## Notes
 
 - Demo runs **fully offline** — no LLM API calls. Intentional for oral presentation reliability.
-- Phase 5 compares **DiCE-random vs DiCE-kdtree vs DiCE-genetic** on the same patient. This mirrors the `configs/ablation_method_*.yaml` framework and illustrates method-choice sensitivity within the CF family.
+- The app compares **DiCE-random vs DiCE-kdtree vs DiCE-genetic** on the same patient. This mirrors the `configs/ablation_method_*.yaml` framework and illustrates method-choice sensitivity within the CF family.

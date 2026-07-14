@@ -5,7 +5,7 @@ Counterfactual Recommendation Demo — Streamlit App
 Interactive exploration of counterfactual recommendations on diabetes
 risk predictions (BRFSS 2021), using DiCE-ML on XGBoost.
 
-Phase 5 — Audit-then-act (this file):
+This file (audit-then-act view):
     - Preset patient archetypes (sidebar dropdown)
     - Method selector (random / kdtree / genetic) — affects main panel
     - On Generate, ALL 3 methods run and cache; main panel shows the
@@ -708,7 +708,7 @@ if method_data is not None:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Side-by-side: Compare methods (the Phase 5 headline section)
+# Side-by-side: Compare methods (headline section)
 # ─────────────────────────────────────────────────────────────────────
 if result is not None and result.get("ok"):
     st.divider()
@@ -840,5 +840,7 @@ with st.expander("Patient input (raw, in model feature order)", expanded=False):
 # ─────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "Diabetes XAI Counterfactual Demo · Phase 5 — audit-then-act · v0.6.0"
+    "Diabetes XAI Counterfactual Demo · v0.6.0 · Companion to "
+    "Int. J. Med. Inform. (2026), doi:10.1016/j.ijmedinf.2026.106555 · "
+    "github.com/thieuanhvan/diabetes-xai-counterfactual"
 )
