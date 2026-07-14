@@ -67,6 +67,53 @@ XTRAIN_PATH = MODELS_DIR / "X_train_sample.parquet"
 YTRAIN_PATH = MODELS_DIR / "y_train_sample.parquet"
 XTEST_PATH = MODELS_DIR / "X_test.parquet"
 META_PATH = MODELS_DIR / "metadata.json"
+PROBA_PATH = MODELS_DIR / "proba_test.parquet"
+
+# ─────────────────────────────────────────────────────────────────────
+# Cohort context (top-200 high-risk reference) — added for presentation
+# ─────────────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def load_proba_test():
+    """All test-set predicted probabilities (for cohort context). None if absent."""
+    if not PROBA_PATH.exists():
+        return None
+    import numpy as np
+    return np.asarray(pd.read_parquet(PROBA_PATH).iloc[:, 0].to_numpy()).ravel()
+
+
+@st.cache_data(show_spinner=False)
+def load_cohort_stats(n_eval: int = 200):
+    """Summary of the top-n_eval high-risk cohort used by the Action phase."""
+    import numpy as np
+    p = load_proba_test()
+    if p is None:
+        return None
+    top = np.sort(p)[-n_eval:]
+    return {
+        "n_test": int(len(p)),
+        "base_rate": float(p.mean()),
+        "n_eval": int(n_eval),
+        "cutoff": float(top.min()),
+        "mean": float(top.mean()),
+        "max": float(top.max()),
+    }
+
+
+@st.cache_data(show_spinner=False)
+def load_top200_table(n_eval: int = 200):
+    """Full top-n_eval high-risk cohort with feature values (for display)."""
+    import numpy as np
+    p = load_proba_test()
+    if p is None or not XTEST_PATH.exists():
+        return None
+    X = pd.read_parquet(XTEST_PATH)
+    idx = np.argsort(p)[-n_eval:][::-1]
+    tbl = X.iloc[idx].reset_index(drop=True)
+    tbl.insert(0, "P(Diabetes=1)", np.round(p[idx], 4))
+    tbl.insert(0, "x_test_row", idx.astype(int))
+    tbl.insert(0, "rank", range(1, len(idx) + 1))
+    return tbl
+
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -89,25 +136,25 @@ MODEL_FEATURE_ORDER = [
 ]
 
 FEATURE_SPEC = {
-    "Age":             {"label": "Age category (1=18-24 … 13=80+)",         "min": 1,    "max": 13,   "default": 10,   "step": 1,   "type": "int"},
-    "Sex":             {"label": "Sex (0=female, 1=male)",                  "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
+    "Age":             {"label": "Age category (1=18-24 … 13=80+)",         "min": 1,    "max": 13,   "default": 6,   "step": 1,   "type": "int"},
+    "Sex":             {"label": "Sex (0=female, 1=male)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "Education":       {"label": "Education (1=none … 6=college grad)",     "min": 1,    "max": 6,    "default": 4,    "step": 1,   "type": "int"},
     "Income":          {"label": "Income 2021 (1=<\\$10K … 11=>=\\$200K)",   "min": 1,    "max": 11,   "default": 6,    "step": 1,   "type": "int"},
-    "BMI":             {"label": "BMI (kg/m²)",                             "min": 12.0, "max": 60.0, "default": 30.0, "step": 0.1, "type": "float"},
+    "BMI":             {"label": "BMI (kg/m²)",                             "min": 12.0, "max": 60.0, "default": 24.2, "step": 0.1, "type": "float"},
     "HighBP":          {"label": "High blood pressure (0/1)",               "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "HighChol":        {"label": "High cholesterol (0/1)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "Stroke":          {"label": "Ever had stroke (0/1, immutable)",        "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "HeartDiseaseorAttack": {"label": "CHD or MI history (0/1, immutable)", "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "DiffWalk":        {"label": "Serious difficulty walking (0/1)",        "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "Smoker":          {"label": "Smoked ≥100 cigarettes lifetime (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "PhysActivity":    {"label": "Physical activity past 30 days (0/1)",    "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "Fruits":          {"label": "Fruit ≥1/day (0/1)",                      "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
+    "PhysActivity":    {"label": "Physical activity past 30 days (0/1)",    "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
+    "Fruits":          {"label": "Fruit ≥1/day (0/1)",                      "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "Veggies":         {"label": "Vegetables ≥1/day (0/1)",                 "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "HvyAlcoholConsump": {"label": "Heavy alcohol consumption (0/1)",       "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "AnyHealthcare":   {"label": "Has healthcare coverage (0/1)",           "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "NoDocbcCost":     {"label": "Couldn't see doctor due to cost (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "CholCheck":       {"label": "Cholesterol check past 5 years (0/1)",    "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "GenHlth":         {"label": "General health (1=Excellent … 5=Poor)",   "min": 1,    "max": 5,    "default": 4,    "step": 1,   "type": "int"},
+    "GenHlth":         {"label": "General health (1=Excellent … 5=Poor)",   "min": 1,    "max": 5,    "default": 3,    "step": 1,   "type": "int"},
     "MentHlth":        {"label": "Bad mental health days past 30",          "min": 0,    "max": 30,   "default": 2,    "step": 1,   "type": "int"},
     "PhysHlth":        {"label": "Bad physical health days past 30",        "min": 0,    "max": 30,   "default": 5,    "step": 1,   "type": "int"},
 }
@@ -731,6 +778,55 @@ if method_data is not None:
 # ─────────────────────────────────────────────────────────────────────
 # Patient input echo
 # ─────────────────────────────────────────────────────────────────────
+with st.expander("📊 Cohort context — top-200 high-risk (reference for presentation)", expanded=False):
+    _cohort = load_cohort_stats()
+    _proba_all = load_proba_test()
+    if _cohort is None or _proba_all is None:
+        st.info("proba_test.parquet not found — run `python demo/prepare_demo_artifacts.py`.")
+    else:
+        _r1 = st.columns(3)
+        _r1[0].metric("Test patients (N)", f"{_cohort['n_test']:,}")
+        _r1[1].metric("Base rate", f"{_cohort['base_rate']:.3f}")
+        _r1[2].metric(f"Top-{_cohort['n_eval']} cutoff", f"{_cohort['cutoff']:.3f}")
+        _r2 = st.columns(3)
+        _r2[0].metric(f"Top-{_cohort['n_eval']} mean risk", f"{_cohort['mean']:.3f}")
+        _r2[1].metric("Top-1 (highest) risk", f"{_cohort['max']:.3f}")
+        if artifacts_ready:
+            _cur = float(predict_proba(model, patient_to_query_df(patient))[0])
+            _rank = int((_proba_all > _cur).sum()) + 1
+            _r2[2].metric("This patient rank", f"{_rank:,} / {_cohort['n_test']:,}")
+            if _cur >= _cohort["cutoff"]:
+                st.success(
+                    f"Current profile (risk {_cur:.3f}) IS in the top-{_cohort['n_eval']} "
+                    "cohort — the population the Action phase generates CFs for."
+                )
+            else:
+                st.warning(
+                    f"Current profile (risk {_cur:.3f}) is NOT in the top-{_cohort['n_eval']} "
+                    f"(cutoff {_cohort['cutoff']:.3f}). In the thesis, CFs are generated only "
+                    f"for the top-{_cohort['n_eval']}; the demo allows any profile for illustration."
+                )
+        st.caption(
+            f"The Action phase generates CFs for the top-{_cohort['n_eval']} highest-risk "
+            "patients (rank-based selection, not a 0.5 cutoff). n=200 is a pragmatic "
+            "compute choice, stable across 5 seeds (CV 0.65%) — not an XGBoost convention. "
+            "Numbers computed live from proba_test.parquet."
+        )
+
+
+with st.expander("📋 Top-200 high-risk cohort — full list (the Action-phase CF population)", expanded=False):
+    _tbl = load_top200_table()
+    if _tbl is None:
+        st.info("Artifacts missing — run `python demo/prepare_demo_artifacts.py`.")
+    else:
+        st.caption(
+            "The 200 highest-risk patients in the BRFSS 2021 test set, ranked by predicted "
+            "probability. This is the exact cohort the Action phase generates counterfactuals "
+            "for (top-200 by rank, not a 0.5 cutoff)."
+        )
+        st.dataframe(_tbl, use_container_width=True, height=430)
+
+
 with st.expander("Patient input (raw, in model feature order)", expanded=False):
     ordered = {f: patient[f] for f in MODEL_FEATURE_ORDER}
     st.dataframe(

@@ -1,6 +1,8 @@
 # diabetes-xai-counterfactual
 
-Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"*, accepted for publication in *International Journal of Medical Informatics* (DOI: [10.1016/j.ijmedinf.2026.106555](https://doi.org/10.1016/j.ijmedinf.2026.106555)).
+Counterfactual explanations with directional actionability constraints for type-2 diabetes risk prediction. Reference implementation for *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"*, published in *International Journal of Medical Informatics* (2026), article 106555. DOI: [10.1016/j.ijmedinf.2026.106555](https://doi.org/10.1016/j.ijmedinf.2026.106555).
+
+**Interactive demo:** [diabetes-xai-counterfactual.streamlit.app](https://diabetes-xai-counterfactual.streamlit.app) — explore the per-query directional taxonomy on individual high-risk patients, with all three DiCE search methods run side by side.
 
 ## What this does
 
@@ -126,6 +128,22 @@ This wrapper invokes the 5 aggregations in cheap-first order and writes `outputs
 
 (Equivalent manual invocation: `python -m ablation.aggregate <type>` per ablation type, in any order.)
 
+## Interactive demo
+
+A Streamlit app is deployed at **[diabetes-xai-counterfactual.streamlit.app](https://diabetes-xai-counterfactual.streamlit.app)**. It runs the per-query taxonomy on a single patient at a time and shows all three DiCE search methods (`random`, `kdtree`, `genetic`) side by side, so that method sensitivity is visible directly: the same patient typically receives three different recommendations, differing in how many features they ask the patient to change.
+
+The app is a companion artifact, not the reproduction path. It is scoped to per-query mode on BRFSS 2021 and does not reproduce the manuscript tables; use `run_main.py` for that.
+
+To run it locally:
+
+```bash
+pip install -r demo/requirements.txt
+python demo/prepare_demo_artifacts.py     # one-time, ~30-60 s
+streamlit run demo/app.py
+```
+
+See `demo/README.md` for the preset archetypes and what each panel shows.
+
 ## Repository layout
 
 ```
@@ -190,10 +208,13 @@ See `data/README.md` for the schema and derivation routes, and `REPRODUCIBILITY.
 
 ```bibtex
 @article{thieu2026kgcf,
-  title   = {Knowledge-guided counterfactual explanations for diabetes risk decision support: A directional intervention taxonomy},
+  title   = {Knowledge-guided counterfactual explanations for diabetes risk
+             decision support: A directional intervention taxonomy},
   author  = {Thieu, Van},
   journal = {International Journal of Medical Informatics},
   year    = {2026},
+  pages   = {106555},
+  issn    = {1386-5056},
   doi     = {10.1016/j.ijmedinf.2026.106555}
 }
 ```

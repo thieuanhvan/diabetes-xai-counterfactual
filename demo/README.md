@@ -4,9 +4,13 @@ Streamlit app for interactive exploration of counterfactual recommendations on d
 
 Companion artifact to the manuscript *"Knowledge-Guided Counterfactual Explanations for Diabetes Risk Decision Support: A Directional Intervention Taxonomy"*. Provides an interactive walk-through of the per-query directional taxonomy on individual high-risk patients.
 
-## Status
+**Live app:** [diabetes-xai-counterfactual.streamlit.app](https://diabetes-xai-counterfactual.streamlit.app)
 
-**Phase 5 — Audit-then-act.** Sidebar preset selector (6 archetypes from very-high risk to low risk + boundary), main-panel method selector (random / kdtree / genetic). On Generate, all 3 DiCE methods run; main panel shows the selected method's full result (gauges + narrative + waterfall); a new **Compare methods** section displays all 3 best CFs side-by-side. Smoke-tested: 3 methods on the same patient produced 3 distinct recommendations (1, 4, 10 features changed respectively) — the headline observation of the method-sensitivity comparison.
+## What the app shows
+
+A sidebar preset selector offers six patient archetypes, from very-high risk to low risk plus a boundary case. On Generate, all three DiCE search methods (`random`, `kdtree`, `genetic`) are run on the selected patient. The main panel shows the chosen method's full result (risk gauges, narrative, waterfall), and a **Compare methods** section places all three best counterfactuals side by side.
+
+The side-by-side view is the point of the app. On the same patient the three methods routinely return three different recommendations, differing in how many features they ask the patient to change (for example 1, 4, and 10 features). A single method's recommendation is therefore only one possible operational answer, not the answer.
 
 ## Setup
 
