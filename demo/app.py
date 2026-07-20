@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.14.1"
+APP_VERSION = "v0.15.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -624,6 +624,8 @@ def weight_for(bmi: float, height_cm: float) -> float:
     return round(min(max(raw, WEIGHT_MIN_KG), WEIGHT_MAX_KG), 1)
 
 
+if "seed_custom" not in st.session_state:
+    st.session_state["seed_custom"] = DEFAULT_SEED
 if "input_height_cm" not in st.session_state:
     st.session_state["input_height_cm"] = reference_height_for(
         st.session_state.get("input_Sex", 1)
@@ -765,20 +767,38 @@ enforce_constraints = st.sidebar.toggle(
     ),
 )
 
-seed_value = st.sidebar.number_input(
+# The seed list is a CONTIGUOUS block 0 to 20, not a hand-picked set. That
+# matters: a curated list of "good" seeds would quietly bake outcome selection
+# into the UI. A contiguous block cannot have been chosen for its outcome, and
+# "Custom" keeps every other integer reachable.
+SEED_CHOICES: list = list(range(0, 21)) + [42, 198]
+SEED_CUSTOM = "Custom…"
+SEED_LABELS = {42: "42 (app default)", 198: "198 (used in the reported run)"}
+
+seed_pick = st.sidebar.selectbox(
     "Random seed",
-    min_value=0,
-    max_value=10_000,
-    value=DEFAULT_SEED,
-    step=1,
-    key="seed_value",
+    options=SEED_CHOICES + [SEED_CUSTOM],
+    index=SEED_CHOICES.index(DEFAULT_SEED),
+    key="seed_choice",
     on_change=clear_cf_result,
+    format_func=lambda v: v if isinstance(v, str) else SEED_LABELS.get(v, str(v)),
     help=(
         "Applied to numpy immediately before each DiCE call. Makes "
         "DiCE-`random` reproducible run-to-run. DiCE-`genetic` has no seed "
         "hook in dice-ml 0.12 and will still vary."
     ),
 )
+if seed_pick == SEED_CUSTOM:
+    seed_value = st.sidebar.number_input(
+        "Custom seed",
+        min_value=0,
+        max_value=10_000,
+        step=1,
+        key="seed_custom",
+        on_change=clear_cf_result,
+    )
+else:
+    seed_value = seed_pick
 
 if enforce_constraints:
     st.sidebar.success("Constraints ON — per-query (taxonomy-enforced)")
@@ -786,7 +806,9 @@ else:
     st.sidebar.warning("Constraints OFF — global (immutable-only baseline)")
 
 st.sidebar.caption(
-    "Any integer works. The seed changes only how DiCE-`random` searches; the "
+    "The list is a contiguous block 0 to 20 plus two documented seeds; pick "
+    "**Custom** for any other integer. The seed changes only how DiCE-`random` "
+    "searches; the "
     "model itself is fully deterministic. On the profile this app opens with, "
     "sweeping seeds 0 to 200 with constraints **OFF** produced at least one "
     "direction violation in **88.1%** of runs (177 of 201), and the violated "
