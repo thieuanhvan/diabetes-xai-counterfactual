@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.9.1"
+APP_VERSION = "v0.10.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -194,11 +194,16 @@ FEATURE_SPEC = {
     # the numeric code, so presets, the model, and every table stay unchanged.
     # Sources: BRFSS 2021 codebook (_AGEG5YR, SEX, EDUCA, INCOME3, GENHLTH).
     "Age": {
-        "label": "Age - age group", "min": 1, "max": 13, "default": 6, "step": 1, "type": "int",
+        # A bare "6" reads as six years old. The code_prefix makes the dropdown
+        # render "Group 6 (45-49 years old)" while still storing the integer 6.
+        "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 6, "step": 1, "type": "int",
+        "code_prefix": "Group ",
         "choices": {
-            1: "18-24", 2: "25-29", 3: "30-34", 4: "35-39", 5: "40-44",
-            6: "45-49", 7: "50-54", 8: "55-59", 9: "60-64", 10: "65-69",
-            11: "70-74", 12: "75-79", 13: "80 or older",
+            1: "18-24 years old", 2: "25-29 years old", 3: "30-34 years old",
+            4: "35-39 years old", 5: "40-44 years old", 6: "45-49 years old",
+            7: "50-54 years old", 8: "55-59 years old", 9: "60-64 years old",
+            10: "65-69 years old", 11: "70-74 years old", 12: "75-79 years old",
+            13: "80 years old or older",
         },
     },
     "Sex": {
@@ -507,6 +512,13 @@ def apply_preset():
                 # spec's declared type before writing to session state.
                 value = float(value) if spec["type"] == "float" else int(round(float(value)))
             st.session_state[f"input_{feature}"] = value
+            if feature == "BMI":
+                # Re-derive weight from the preset's BMI at the current height,
+                # so the calculator does not keep showing the previous patient.
+                _h = float(st.session_state.get("input_height_cm", 170.0))
+                st.session_state["input_weight_kg"] = round(
+                    float(value) * (_h / 100.0) ** 2, 1
+                )
     # Always clear stale CF result on preset change — even Custom — because
     # the user is signalling "I want a fresh look".
     st.session_state.cf_result = None
@@ -558,19 +570,85 @@ for _f, _s in FEATURE_SPEC.items():
             float(_s["default"]) if _s["type"] == "float" else int(_s["default"])
         )
 
+# Weight and height are UI-only helpers, not model features. Height is seeded at
+# a fixed value and weight is back-computed so the pair is consistent with the
+# current BMI the moment the calculator is first opened.
+DEFAULT_HEIGHT_CM = 170.0
+if "input_height_cm" not in st.session_state:
+    st.session_state["input_height_cm"] = DEFAULT_HEIGHT_CM
+if "input_weight_kg" not in st.session_state:
+    st.session_state["input_weight_kg"] = round(
+        float(st.session_state["input_BMI"]) * (DEFAULT_HEIGHT_CM / 100.0) ** 2, 1
+    )
+
 for group_title, feature_names in FEATURE_GROUPS:
     st.sidebar.markdown(f"**{group_title}**")
     for fname in feature_names:
         spec = FEATURE_SPEC[fname]
+
+        if fname == "BMI":
+            # BMI is what the model consumes and what BRFSS stores, so it stays
+            # the single source of truth. Most people do not know their BMI, so
+            # this offers an equivalent way in: enter weight and height, and BMI
+            # is derived. Switching modes never loses the current value because
+            # both branches write back to `input_BMI`.
+            mode = st.sidebar.radio(
+                "BMI input",
+                options=["BMI directly", "Weight and height"],
+                key="bmi_mode",
+                horizontal=True,
+                help=(
+                    "BRFSS records BMI, not weight and height, so BMI is the "
+                    "value actually stored and fed to the model. The second "
+                    "mode simply computes it as weight / height squared."
+                ),
+            )
+            if mode == "BMI directly":
+                patient[fname] = st.sidebar.number_input(
+                    spec["label"],
+                    min_value=float(spec["min"]),
+                    max_value=float(spec["max"]),
+                    step=float(spec["step"]),
+                    key="input_BMI",
+                )
+            else:
+                _w = st.sidebar.number_input(
+                    "Weight (kg)", min_value=25.0, max_value=300.0, step=0.5,
+                    key="input_weight_kg",
+                )
+                _h = st.sidebar.number_input(
+                    "Height (cm)", min_value=100.0, max_value=230.0, step=0.5,
+                    key="input_height_cm",
+                )
+                _raw = float(_w) / ((float(_h) / 100.0) ** 2)
+                _bmi = round(_raw, 1)
+                _lo, _hi = float(spec["min"]), float(spec["max"])
+                _clamped = min(max(_bmi, _lo), _hi)
+                # Write back so the value survives a switch to "BMI directly".
+                st.session_state["input_BMI"] = _clamped
+                patient[fname] = _clamped
+                if _clamped != _bmi:
+                    st.sidebar.warning(
+                        f"Computed BMI {_bmi} is outside the model's supported "
+                        f"range [{_lo:g}, {_hi:g}] and was clamped to {_clamped:g}."
+                    )
+                else:
+                    st.sidebar.caption(
+                        f"**BMI = {_bmi:g} kg/m²** (computed, this is the value "
+                        "sent to the model)"
+                    )
+            continue
+
         choices = spec.get("choices")
         if choices is not None:
             # Dropdown over the BRFSS codes. The stored value stays the numeric
             # code, so presets, the model input, and every downstream table are
             # untouched; only the on-screen text changes.
+            _pfx = spec.get("code_prefix", "")
             patient[fname] = st.sidebar.selectbox(
                 spec["label"],
                 options=list(choices.keys()),
-                format_func=lambda v, _c=choices: f"{v} ({_c[v]})",
+                format_func=lambda v, _c=choices, _p=_pfx: f"{_p}{v} ({_c[v]})",
                 key=f"input_{fname}",
             )
         elif spec["type"] == "float":
