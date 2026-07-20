@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.12.1"
+APP_VERSION = "v0.13.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -522,10 +522,8 @@ def apply_preset():
             if feature == "BMI":
                 # Re-derive weight from the preset's BMI at the current height,
                 # so the calculator does not keep showing the previous patient.
-                _h = float(st.session_state.get("input_height_cm", 170.0))
-                st.session_state["input_weight_kg"] = round(
-                    float(value) * (_h / 100.0) ** 2, 1
-                )
+                _h = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
+                st.session_state["input_weight_kg"] = weight_for(value, _h)
     # Always clear stale CF result on preset change — even Custom — because
     # the user is signalling "I want a fresh look".
     st.session_state.cf_result = None
@@ -580,17 +578,44 @@ for _f, _s in FEATURE_SPEC.items():
 # Weight and height are UI-only helpers, not model features. Height is seeded at
 # a fixed value and weight is back-computed so the pair is consistent with the
 # current BMI the moment the calculator is first opened.
-# BRFSS surveys adults aged 18 and over, so the calculator bounds are adult
-# ranges. Narrower bounds than the model's BMI range are deliberate: they stop
-# the widgets from opening on a child-sized default when session state is empty.
+# BRFSS records BMI. It does NOT record weight and height, so no true pair
+# exists for any patient in this dataset. The calculator therefore shows ONE
+# pair that reproduces the current BMI, using a reference height for the
+# profile's sex. Only BMI reaches the model.
+#
+# Bounds are adult ranges because BRFSS surveys adults aged 18 and over.
 DEFAULT_HEIGHT_CM = 170.0
 HEIGHT_MIN_CM, HEIGHT_MAX_CM = 130.0, 220.0
 WEIGHT_MIN_KG, WEIGHT_MAX_KG = 30.0, 250.0
+REFERENCE_HEIGHT_CM = {1: 175.0, 0: 162.0}   # approximate US adult means, male / female
+
+
+def reference_height_for(sex_code) -> float:
+    """Reference height used only to seed the calculator, never a data value."""
+    try:
+        return REFERENCE_HEIGHT_CM.get(int(sex_code), DEFAULT_HEIGHT_CM)
+    except (TypeError, ValueError):
+        return DEFAULT_HEIGHT_CM
+
+
+def weight_for(bmi: float, height_cm: float) -> float:
+    """Weight reproducing `bmi` at `height_cm`, clamped to the widget bounds.
+
+    Clamping matters: Streamlit rejects a session-state value outside a
+    number_input's declared range, so an unclamped write here would crash the
+    app at extreme BMI and height combinations.
+    """
+    raw = float(bmi) * (float(height_cm) / 100.0) ** 2
+    return round(min(max(raw, WEIGHT_MIN_KG), WEIGHT_MAX_KG), 1)
+
+
 if "input_height_cm" not in st.session_state:
-    st.session_state["input_height_cm"] = DEFAULT_HEIGHT_CM
+    st.session_state["input_height_cm"] = reference_height_for(
+        st.session_state.get("input_Sex", 1)
+    )
 if "input_weight_kg" not in st.session_state:
-    st.session_state["input_weight_kg"] = round(
-        float(st.session_state["input_BMI"]) * (DEFAULT_HEIGHT_CM / 100.0) ** 2, 1
+    st.session_state["input_weight_kg"] = weight_for(
+        st.session_state["input_BMI"], st.session_state["input_height_cm"]
     )
 
 for group_title, feature_names in FEATURE_GROUPS:
@@ -621,8 +646,8 @@ for group_title, feature_names in FEATURE_GROUPS:
                 # run (or reset to the widget minimum) would drive BMI to a
                 # value the user never entered the moment the calculator opens.
                 _h_sync = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
-                st.session_state["input_weight_kg"] = round(
-                    float(st.session_state["input_BMI"]) * (_h_sync / 100.0) ** 2, 1
+                st.session_state["input_weight_kg"] = weight_for(
+                    st.session_state["input_BMI"], _h_sync
                 )
                 st.session_state["_prev_bmi_mode"] = mode
 
@@ -638,8 +663,8 @@ for group_title, feature_names in FEATURE_GROUPS:
                 # switching to it never shows a weight that contradicts the BMI
                 # currently in effect.
                 _h_now = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
-                st.session_state["input_weight_kg"] = round(
-                    float(patient[fname]) * (_h_now / 100.0) ** 2, 1
+                st.session_state["input_weight_kg"] = weight_for(
+                    patient[fname], _h_now
                 )
             else:
                 _w = st.sidebar.number_input(
@@ -667,6 +692,12 @@ for group_title, feature_names in FEATURE_GROUPS:
                         f"**BMI = {_bmi:g} kg/m²** (computed, this is the value "
                         "sent to the model)"
                     )
+                st.sidebar.caption(
+                    "BRFSS records BMI only, so no real weight or height exists "
+                    "for these patients. The pair shown is one combination that "
+                    "reproduces the BMI, seeded at a reference height for the "
+                    "selected sex. Change either field freely."
+                )
             continue
 
         choices = spec.get("choices")
