@@ -128,6 +128,48 @@ N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
 DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 
+# ─────────────────────────────────────────────────────────────────────
+# Build identity
+# ─────────────────────────────────────────────────────────────────────
+APP_VERSION = "v0.7.1"
+PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
+REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
+
+
+@st.cache_data(show_spinner=False)
+def get_build_stamp() -> str:
+    """Identify the deployed source, in UTC+7.
+
+    Preferred: the git commit that produced this checkout, which is the only
+    timestamp that is stable across redeploys of the same code. Streamlit
+    Community Cloud clones the repo, so `git log` usually works there.
+
+    Fallback: the mtime of this file. That is the moment the file landed on
+    disk during deploy, NOT the commit time, so it is labelled differently
+    to avoid claiming more precision than we have.
+    """
+    from datetime import datetime, timedelta, timezone
+    import subprocess
+
+    vn = timezone(timedelta(hours=7))
+    try:
+        sha = subprocess.run(
+            ["git", "log", "-1", "--format=%h"],
+            cwd=REPO_ROOT, capture_output=True, text=True, timeout=5,
+        )
+        iso = subprocess.run(
+            ["git", "log", "-1", "--format=%cI"],
+            cwd=REPO_ROOT, capture_output=True, text=True, timeout=5,
+        )
+        if sha.returncode == 0 and iso.returncode == 0 and iso.stdout.strip():
+            when = datetime.fromisoformat(iso.stdout.strip()).astimezone(vn)
+            return f"commit {sha.stdout.strip()} · {when:%Y-%m-%d %H:%M} (UTC+7)"
+    except Exception:
+        pass
+
+    when = datetime.fromtimestamp(Path(__file__).stat().st_mtime, tz=vn)
+    return f"build {when:%Y-%m-%d %H:%M} (UTC+7)"
+
 
 # ─────────────────────────────────────────────────────────────────────
 # Feature spec (mirrors src/.../feature_taxonomy.py)
@@ -978,7 +1020,7 @@ def build_run_report(result: dict, meta: dict | None) -> str:
     L.append("# Counterfactual Run Report")
     L.append("")
     L.append(f"- Generated: {vn_now:%Y-%m-%d %H:%M} (UTC+7)")
-    L.append("- App: diabetes-xai-counterfactual demo v0.7.0")
+    L.append(f"- App: diabetes-xai-counterfactual demo {APP_VERSION} · {get_build_stamp()}")
     L.append("- Paper: Int. J. Med. Inform. (2026), doi:10.1016/j.ijmedinf.2026.106555")
     if meta:
         L.append(
@@ -1149,7 +1191,8 @@ with st.expander("Patient input (raw, in model feature order)", expanded=False):
 # ─────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "Diabetes XAI Counterfactual Demo · v0.7.0 · Companion to "
-    "Int. J. Med. Inform. (2026), doi:10.1016/j.ijmedinf.2026.106555 · "
-    "github.com/thieuanhvan/diabetes-xai-counterfactual"
+    f"Diabetes XAI Counterfactual Demo · {APP_VERSION} · {get_build_stamp()} · "
+    f"Companion to [Int. J. Med. Inform. (2026), "
+    f"doi:10.1016/j.ijmedinf.2026.106555]({PAPER_DOI_URL}) · "
+    f"[github.com/thieuanhvan/diabetes-xai-counterfactual]({REPO_URL})"
 )
