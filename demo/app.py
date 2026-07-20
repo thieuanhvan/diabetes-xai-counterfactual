@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.12.0"
+APP_VERSION = "v0.12.1"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -501,7 +501,14 @@ artifacts_ready = (model is not None) and (X_train is not None)
 # Preset callback — populates session_state input keys + clears stale CF
 # ─────────────────────────────────────────────────────────────────────
 def apply_preset():
-    name = st.session_state.preset_choice
+    # Read defensively. Streamlit discards the session-state entry for any
+    # widget that was not rendered in the previous run, so if a run aborts
+    # before the sidebar is built, this callback can fire while
+    # `preset_choice` is absent and attribute access would raise
+    # AttributeError. Returning quietly is correct: no preset was chosen.
+    name = st.session_state.get("preset_choice")
+    if name is None:
+        return
     preset_values = PRESETS.get(name)
     if preset_values is not None:
         for feature, value in preset_values.items():
@@ -608,6 +615,17 @@ for group_title, feature_names in FEATURE_GROUPS:
                     "mode simply computes it as weight / height squared."
                 ),
             )
+            if st.session_state.get("_prev_bmi_mode") != mode:
+                # On every mode switch, re-derive weight from the BMI currently
+                # in effect. Without this, a weight left over from an aborted
+                # run (or reset to the widget minimum) would drive BMI to a
+                # value the user never entered the moment the calculator opens.
+                _h_sync = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
+                st.session_state["input_weight_kg"] = round(
+                    float(st.session_state["input_BMI"]) * (_h_sync / 100.0) ** 2, 1
+                )
+                st.session_state["_prev_bmi_mode"] = mode
+
             if mode == "BMI directly":
                 patient[fname] = st.sidebar.number_input(
                     spec["label"],
@@ -1445,7 +1463,7 @@ with st.expander("📊 Cohort context — top-200 high-risk (reference for prese
             else:
                 st.warning(
                     f"Current profile (risk {_cur:.3f}) is NOT in the top-{_cohort['n_eval']} "
-                    f"(cutoff {_cohort['cutoff']:.3f}). In the thesis, CFs are generated only "
+                    f"(cutoff {_cohort['cutoff']:.3f}). In the study, CFs are generated only "
                     f"for the top-{_cohort['n_eval']}; the demo allows any profile for illustration."
                 )
         st.caption(
