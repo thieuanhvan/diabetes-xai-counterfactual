@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.14.0"
+APP_VERSION = "v0.14.1"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -784,6 +784,15 @@ if enforce_constraints:
     st.sidebar.success("Constraints ON — per-query (taxonomy-enforced)")
 else:
     st.sidebar.warning("Constraints OFF — global (immutable-only baseline)")
+
+st.sidebar.caption(
+    "Any integer works. The seed changes only how DiCE-`random` searches; the "
+    "model itself is fully deterministic. On the profile this app opens with, "
+    "sweeping seeds 0 to 200 with constraints **OFF** produced at least one "
+    "direction violation in **88.1%** of runs (177 of 201), and the violated "
+    "feature was `CholCheck` in 172 of them. The phenomenon is not "
+    "seed-specific; try your own seed."
+)
 
 generate_clicked = st.sidebar.button(
     "Generate counterfactual",
