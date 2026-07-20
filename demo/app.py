@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.8.0"
+APP_VERSION = "v0.9.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -189,27 +189,103 @@ MODEL_FEATURE_ORDER = [
 # population the Action phase actually targets (P(Diabetes=1) = 0.786).
 # The same row is also available from the preset dropdown.
 FEATURE_SPEC = {
-    "Age":             {"label": "Age category (1=18-24 … 13=80+)",         "min": 1,    "max": 13,   "default": 6,   "step": 1,   "type": "int"},
-    "Sex":             {"label": "Sex (0=female, 1=male)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Education":       {"label": "Education (1=none … 6=college grad)",     "min": 1,    "max": 6,    "default": 5,    "step": 1,   "type": "int"},
-    "Income":          {"label": "Income 2021 (1=<\\$10K … 11=>=\\$200K)",   "min": 1,    "max": 11,   "default": 5,    "step": 1,   "type": "int"},
-    "BMI":             {"label": "BMI (kg/m²)",                             "min": 12.0, "max": 60.0, "default": 45.0, "step": 0.1, "type": "float"},
-    "HighBP":          {"label": "High blood pressure (0/1)",               "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "HighChol":        {"label": "High cholesterol (0/1)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Stroke":          {"label": "Ever had stroke (0/1, immutable)",        "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "HeartDiseaseorAttack": {"label": "CHD or MI history (0/1, immutable)", "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "DiffWalk":        {"label": "Serious difficulty walking (0/1)",        "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "Smoker":          {"label": "Smoked ≥100 cigarettes lifetime (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "PhysActivity":    {"label": "Physical activity past 30 days (0/1)",    "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "Fruits":          {"label": "Fruit ≥1/day (0/1)",                      "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "Veggies":         {"label": "Vegetables ≥1/day (0/1)",                 "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "HvyAlcoholConsump": {"label": "Heavy alcohol consumption (0/1)",       "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "AnyHealthcare":   {"label": "Has healthcare coverage (0/1)",           "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "NoDocbcCost":     {"label": "Couldn't see doctor due to cost (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "CholCheck":       {"label": "Cholesterol check past 5 years (0/1)",    "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "GenHlth":         {"label": "General health (1=Excellent … 5=Poor)",   "min": 1,    "max": 5,    "default": 5,    "step": 1,   "type": "int"},
-    "MentHlth":        {"label": "Bad mental health days past 30",          "min": 0,    "max": 30,   "default": 0,    "step": 1,   "type": "int"},
-    "PhysHlth":        {"label": "Bad physical health days past 30",        "min": 0,    "max": 30,   "default": 0,    "step": 1,   "type": "int"},
+    # `choices` maps the stored BRFSS code to its codebook meaning. When present,
+    # the sidebar renders a dropdown showing "code - meaning" while still storing
+    # the numeric code, so presets, the model, and every table stay unchanged.
+    # Sources: BRFSS 2021 codebook (_AGEG5YR, SEX, EDUCA, INCOME3, GENHLTH).
+    "Age": {
+        "label": "Age - age group", "min": 1, "max": 13, "default": 6, "step": 1, "type": "int",
+        "choices": {
+            1: "18-24", 2: "25-29", 3: "30-34", 4: "35-39", 5: "40-44",
+            6: "45-49", 7: "50-54", 8: "55-59", 9: "60-64", 10: "65-69",
+            11: "70-74", 12: "75-79", 13: "80 or older",
+        },
+    },
+    "Sex": {
+        "label": "Sex", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "Female", 1: "Male"},
+    },
+    "Education": {
+        "label": "Education - highest level completed", "min": 1, "max": 6, "default": 5, "step": 1, "type": "int",
+        "choices": {
+            1: "Never attended school or only kindergarten",
+            2: "Grades 1-8 (elementary)",
+            3: "Grades 9-11 (some high school)",
+            4: "Grade 12 or GED (high school graduate)",
+            5: "College 1-3 years (some college or technical school)",
+            6: "College 4 years or more (college graduate)",
+        },
+    },
+    "Income": {
+        "label": "Income - annual household income (2021 brackets)", "min": 1, "max": 11, "default": 5, "step": 1, "type": "int",
+        "choices": {
+            1: "Less than $10,000", 2: "$10,000 to less than $15,000",
+            3: "$15,000 to less than $20,000", 4: "$20,000 to less than $25,000",
+            5: "$25,000 to less than $35,000", 6: "$35,000 to less than $50,000",
+            7: "$50,000 to less than $75,000", 8: "$75,000 to less than $100,000",
+            9: "$100,000 to less than $150,000", 10: "$150,000 to less than $200,000",
+            11: "$200,000 or more",
+        },
+    },
+    "BMI": {"label": "BMI - body mass index (kg/m\u00b2)", "min": 12.0, "max": 60.0, "default": 45.0, "step": 0.1, "type": "float"},
+    "HighBP": {
+        "label": "HighBP - told they have high blood pressure", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "HighChol": {
+        "label": "HighChol - told they have high cholesterol", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "Stroke": {
+        "label": "Stroke - ever had a stroke (immutable)", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "HeartDiseaseorAttack": {
+        "label": "HeartDiseaseorAttack - CHD or MI history (immutable)", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "DiffWalk": {
+        "label": "DiffWalk - serious difficulty walking or climbing stairs", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "Smoker": {
+        "label": "Smoker - smoked at least 100 cigarettes in lifetime", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "PhysActivity": {
+        "label": "PhysActivity - physical activity in the past 30 days", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "Fruits": {
+        "label": "Fruits - eats fruit at least once a day", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "Veggies": {
+        "label": "Veggies - eats vegetables at least once a day", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "HvyAlcoholConsump": {
+        "label": "HvyAlcoholConsump - heavy alcohol consumption", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "AnyHealthcare": {
+        "label": "AnyHealthcare - has any health care coverage", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "NoDocbcCost": {
+        "label": "NoDocbcCost - could not see a doctor because of cost", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "CholCheck": {
+        "label": "CholCheck - cholesterol checked in the past 5 years", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "choices": {0: "No", 1: "Yes"},
+    },
+    "GenHlth": {
+        "label": "GenHlth - self-rated general health", "min": 1, "max": 5, "default": 5, "step": 1, "type": "int",
+        "choices": {1: "Excellent", 2: "Very good", 3: "Good", 4: "Fair", 5: "Poor"},
+    },
+    "MentHlth": {"label": "MentHlth - days of poor mental health in past 30", "min": 0, "max": 30, "default": 0, "step": 1, "type": "int"},
+    "PhysHlth": {"label": "PhysHlth - days of poor physical health in past 30", "min": 0, "max": 30, "default": 0, "step": 1, "type": "int"},
 }
 
 FEATURE_GROUPS = [
@@ -424,6 +500,12 @@ def apply_preset():
     preset_values = PRESETS.get(name)
     if preset_values is not None:
         for feature, value in preset_values.items():
+            spec = FEATURE_SPEC.get(feature)
+            if spec is not None:
+                # A selectbox rejects a value that is not identical to one of
+                # its options, so 1.0 would break where 1 works. Coerce to the
+                # spec's declared type before writing to session state.
+                value = float(value) if spec["type"] == "float" else int(round(float(value)))
             st.session_state[f"input_{feature}"] = value
     # Always clear stale CF result on preset change — even Custom — because
     # the user is signalling "I want a fresh look".
@@ -463,16 +545,39 @@ st.sidebar.caption(
 st.sidebar.divider()
 
 patient = {}
+
+# Seed every input from FEATURE_SPEC before the widgets are created. Selectbox
+# has no `value` parameter, so without this it would open on its first option
+# (Age=1) instead of the default profile. Seeding also lets the number_inputs
+# drop their `value=` argument, which silences Streamlit's warning about
+# setting session state for a widget that also declares a default.
+for _f, _s in FEATURE_SPEC.items():
+    _k = f"input_{_f}"
+    if _k not in st.session_state:
+        st.session_state[_k] = (
+            float(_s["default"]) if _s["type"] == "float" else int(_s["default"])
+        )
+
 for group_title, feature_names in FEATURE_GROUPS:
     st.sidebar.markdown(f"**{group_title}**")
     for fname in feature_names:
         spec = FEATURE_SPEC[fname]
-        if spec["type"] == "float":
+        choices = spec.get("choices")
+        if choices is not None:
+            # Dropdown over the BRFSS codes. The stored value stays the numeric
+            # code, so presets, the model input, and every downstream table are
+            # untouched; only the on-screen text changes.
+            patient[fname] = st.sidebar.selectbox(
+                spec["label"],
+                options=list(choices.keys()),
+                format_func=lambda v, _c=choices: f"{v} - {_c[v]}",
+                key=f"input_{fname}",
+            )
+        elif spec["type"] == "float":
             patient[fname] = st.sidebar.number_input(
                 spec["label"],
                 min_value=float(spec["min"]),
                 max_value=float(spec["max"]),
-                value=float(spec["default"]),
                 step=float(spec["step"]),
                 key=f"input_{fname}",
             )
@@ -481,7 +586,6 @@ for group_title, feature_names in FEATURE_GROUPS:
                 spec["label"],
                 min_value=int(spec["min"]),
                 max_value=int(spec["max"]),
-                value=int(spec["default"]),
                 step=int(spec["step"]),
                 key=f"input_{fname}",
             )
@@ -551,6 +655,7 @@ selected_method = st.sidebar.radio(
     key="method_choice",
     index=DICE_METHODS.index(DEFAULT_METHOD),
     horizontal=True,
+    format_func=lambda m: f"DiCE-{m}",
     help=(
         "Which method's full result (narrative + waterfall + raw CFs) "
         "appears in the main panel. Switching does NOT re-run DiCE — "
@@ -558,7 +663,14 @@ selected_method = st.sidebar.radio(
     ),
 )
 st.sidebar.caption(
-    f"Methods compared: **{' · '.join(DICE_METHODS)}** · "
+    "These three are the names of DiCE-ML's counterfactual **search "
+    "algorithms**, not quality settings. `DiCE-random` searches by sampling "
+    "perturbations — it is seeded above, so its output is reproducible, not "
+    "arbitrary. `DiCE-kdtree` searches for the nearest real training patient. "
+    "`DiCE-genetic` runs an evolutionary search."
+)
+st.sidebar.caption(
+    f"Methods compared: **{' · '.join('DiCE-' + m for m in DICE_METHODS)}** · "
     f"CFs per method: **{N_COUNTERFACTUALS}** · "
     f"Target class: **{DESIRED_CLASS}** (non-diabetic)"
 )
@@ -573,11 +685,14 @@ st.caption(
 )
 
 st.warning(
-    "**Research tool, not medical advice.** This app exists to show how "
-    "counterfactual explanations behave with and without a directional "
-    "intervention taxonomy. It does not diagnose, screen, or recommend "
-    "treatment, and its outputs are not causal claims. Do not use it to make "
-    "decisions about your own health — talk to a clinician."
+    "**Research tool, not medical advice.** This app is the companion artifact "
+    "of a peer-reviewed *methods* paper (Thieu, 2026, *Int. J. Med. Inform.* "
+    f"106555, [doi:10.1016/j.ijmedinf.2026.106555]({PAPER_DOI_URL})), which "
+    "studies how counterfactual explanations behave with and without a "
+    "directional intervention taxonomy. It is not a clinical validation study. "
+    "The app does not diagnose, screen, or recommend treatment, and its outputs "
+    "are not causal claims. Do not use it to make decisions about your own "
+    "health; talk to a clinician."
 )
 
 with st.expander(
@@ -799,7 +914,7 @@ with col_baseline:
             )
 
 with col_cf:
-    st.subheader(f"Counterfactual recommendation ({selected_method})")
+    st.subheader(f"Counterfactual recommendation (DiCE-{selected_method})")
     if result is None:
         st.info("Click **Generate counterfactual** above (or at the bottom of the sidebar) to find an actionable profile change.")
         st.metric(label="CF risk", value="—")
@@ -859,7 +974,7 @@ with col_cf:
 # ─────────────────────────────────────────────────────────────────────
 if method_data is not None:
     st.divider()
-    st.subheader(f"What changed ({selected_method} best CF)")
+    st.subheader(f"What changed (DiCE-{selected_method} best CF)")
 
     best_cf = method_data["cfs_df"].iloc[method_data["best_idx"]]
     delta_df = compute_feature_delta(result["query"], best_cf)
@@ -1205,12 +1320,47 @@ with st.expander("📋 Top-200 high-risk cohort — full list (the Action-phase 
     if _tbl is None:
         st.info("Artifacts missing — run `python demo/prepare_demo_artifacts.py`.")
     else:
+        # Locate the sidebar's default profile inside the cohort by matching all
+        # 21 features, rather than hard-coding a rank. If the defaults are ever
+        # edited, the marker follows them instead of silently pointing at the
+        # wrong patient.
+        _tbl = _tbl.copy()
+        _match = np.ones(len(_tbl), dtype=bool)
+        for _f in MODEL_FEATURE_ORDER:
+            _match &= np.isclose(
+                _tbl[_f].to_numpy(dtype=float),
+                float(FEATURE_SPEC[_f]["default"]),
+            )
+        _tbl.insert(3, "note", np.where(_match, "◀ default profile", ""))
+
+        def _hl_default(row):
+            hit = bool(row["note"])
+            return ["background-color: #ffe0e0; font-weight: 600" if hit else ""
+                    for _ in row]
+
         st.caption(
             "The 200 highest-risk patients in the BRFSS 2021 test set, ranked by predicted "
             "probability. This is the exact cohort the Action phase generates counterfactuals "
             "for (top-200 by rank, not a 0.5 cutoff)."
         )
-        st.dataframe(_tbl, use_container_width=True, height=430)
+        if _match.any():
+            _rk = int(_tbl.loc[_match, "rank"].iloc[0])
+            st.caption(
+                f"The row highlighted in red (**rank {_rk}**) is the profile the "
+                "sidebar loads by default, so the app opens on a real member of "
+                "this cohort rather than an invented one."
+            )
+        else:
+            st.caption(
+                "The sidebar's current default profile is not a member of this "
+                "cohort, so no row is highlighted."
+            )
+        st.dataframe(
+            _tbl.style.apply(_hl_default, axis=1),
+            use_container_width=True,
+            height=430,
+            hide_index=True,
+        )
 
 
 with st.expander("Patient input (raw, in model feature order)", expanded=False):
