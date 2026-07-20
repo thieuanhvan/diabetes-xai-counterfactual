@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.11.1"
+APP_VERSION = "v0.12.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -958,40 +958,58 @@ if result is not None:
         )
 
 def risk_context_note(p_risk: float, n_eval: int = 200) -> None:
-    """Render a colour-coded note placing one risk score in the cohort.
+    """Place one score in the cohort, in plain language first.
 
-    Deliberately keyed to RANK, not to 0.5. At a test-set prevalence of 0.142
-    the 0.5 decision threshold has very low sensitivity, so the paper selects
-    the Action-phase population by rank. A banner that lit up at 0.5 would
-    contradict the method it is demonstrating.
+    Two audiences read this line. Someone arriving from the paper wants rank
+    and cohort membership; someone who just typed in their own height and
+    weight wants to know what the number means. So the headline is a
+    percentile against the dataset, and the research-facing detail sits underneath
+    in a caption.
+
+    Everything here describes the position of a MODEL SCORE within a dataset.
+    It deliberately avoids saying the person is or is not at risk: the label
+    this model was trained on is "has been diagnosed by a doctor", so a high
+    score is not a diagnosis and a low score is not a clearance.
+
+    Keyed to RANK, not to 0.5. At a test-set prevalence of 0.142 the 0.5
+    decision threshold has very low sensitivity, so the paper selects the
+    Action-phase population by rank instead.
     """
     cohort = load_cohort_stats(n_eval)
     p_all = load_proba_test()
     if cohort is None or p_all is None:
         return
+    n_test = cohort["n_test"]
     rank = int((p_all > p_risk).sum()) + 1
+    pct_below = float((p_all < p_risk).mean()) * 100.0
     base = cohort["base_rate"]
     ratio = p_risk / base if base else float("nan")
+    ratio_txt = f"{ratio:.2f}x" if ratio < 1 else f"{ratio:.1f}x"
     cutoff = cohort["cutoff"]
 
     if p_risk >= cutoff:
         st.error(
-            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
-            f"population base rate. This profile is inside the top-{n_eval} "
-            f"cohort (cutoff {cutoff:.3f}) that the Action phase generates "
-            "counterfactuals for."
+            f"**This profile scores higher than {pct_below:.1f}% of the "
+            f"{n_test:,} people in the study data.** That is a score from a "
+            "research model, not a diagnosis."
         )
     elif p_risk >= 2 * base:
         st.warning(
-            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
-            f"population base rate, but outside the top-{n_eval} cohort "
-            f"(cutoff {cutoff:.3f})."
+            f"**This profile scores higher than {pct_below:.0f}% of the "
+            f"{n_test:,} people in the study data.**"
         )
     else:
         st.info(
-            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
-            "population base rate. Not a high-risk profile."
+            f"**This profile scores lower than most of the {n_test:,} people "
+            "in the study data.**"
         )
+
+    in_cohort = ("inside" if p_risk >= cutoff else "outside")
+    st.caption(
+        f"For reference: rank {rank:,} of {n_test:,} · {ratio_txt} the dataset "
+        f"average of {base:.3f} · {in_cohort} the top-{n_eval} group this study "
+        f"analyses (score {cutoff:.3f} or above)."
+    )
 
 
 col_baseline, col_cf = st.columns(2, gap="large")
