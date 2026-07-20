@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.10.0"
+APP_VERSION = "v0.11.1"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -573,7 +573,12 @@ for _f, _s in FEATURE_SPEC.items():
 # Weight and height are UI-only helpers, not model features. Height is seeded at
 # a fixed value and weight is back-computed so the pair is consistent with the
 # current BMI the moment the calculator is first opened.
+# BRFSS surveys adults aged 18 and over, so the calculator bounds are adult
+# ranges. Narrower bounds than the model's BMI range are deliberate: they stop
+# the widgets from opening on a child-sized default when session state is empty.
 DEFAULT_HEIGHT_CM = 170.0
+HEIGHT_MIN_CM, HEIGHT_MAX_CM = 130.0, 220.0
+WEIGHT_MIN_KG, WEIGHT_MAX_KG = 30.0, 250.0
 if "input_height_cm" not in st.session_state:
     st.session_state["input_height_cm"] = DEFAULT_HEIGHT_CM
 if "input_weight_kg" not in st.session_state:
@@ -611,14 +616,21 @@ for group_title, feature_names in FEATURE_GROUPS:
                     step=float(spec["step"]),
                     key="input_BMI",
                 )
+                # Keep the calculator consistent even while it is hidden, so
+                # switching to it never shows a weight that contradicts the BMI
+                # currently in effect.
+                _h_now = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
+                st.session_state["input_weight_kg"] = round(
+                    float(patient[fname]) * (_h_now / 100.0) ** 2, 1
+                )
             else:
                 _w = st.sidebar.number_input(
-                    "Weight (kg)", min_value=25.0, max_value=300.0, step=0.5,
-                    key="input_weight_kg",
+                    "Weight (kg)", min_value=WEIGHT_MIN_KG, max_value=WEIGHT_MAX_KG,
+                    step=0.5, key="input_weight_kg",
                 )
                 _h = st.sidebar.number_input(
-                    "Height (cm)", min_value=100.0, max_value=230.0, step=0.5,
-                    key="input_height_cm",
+                    "Height (cm)", min_value=HEIGHT_MIN_CM, max_value=HEIGHT_MAX_CM,
+                    step=0.5, key="input_height_cm",
                 )
                 _raw = float(_w) / ((float(_h) / 100.0) ** 2)
                 _bmi = round(_raw, 1)
@@ -945,6 +957,43 @@ if result is not None:
             f"seed {result.get('seed', DEFAULT_SEED)}"
         )
 
+def risk_context_note(p_risk: float, n_eval: int = 200) -> None:
+    """Render a colour-coded note placing one risk score in the cohort.
+
+    Deliberately keyed to RANK, not to 0.5. At a test-set prevalence of 0.142
+    the 0.5 decision threshold has very low sensitivity, so the paper selects
+    the Action-phase population by rank. A banner that lit up at 0.5 would
+    contradict the method it is demonstrating.
+    """
+    cohort = load_cohort_stats(n_eval)
+    p_all = load_proba_test()
+    if cohort is None or p_all is None:
+        return
+    rank = int((p_all > p_risk).sum()) + 1
+    base = cohort["base_rate"]
+    ratio = p_risk / base if base else float("nan")
+    cutoff = cohort["cutoff"]
+
+    if p_risk >= cutoff:
+        st.error(
+            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
+            f"population base rate. This profile is inside the top-{n_eval} "
+            f"cohort (cutoff {cutoff:.3f}) that the Action phase generates "
+            "counterfactuals for."
+        )
+    elif p_risk >= 2 * base:
+        st.warning(
+            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
+            f"population base rate, but outside the top-{n_eval} cohort "
+            f"(cutoff {cutoff:.3f})."
+        )
+    else:
+        st.info(
+            f"**Rank {rank:,} of {cohort['n_test']:,}** · {ratio:.1f}x the "
+            "population base rate. Not a high-risk profile."
+        )
+
+
 col_baseline, col_cf = st.columns(2, gap="large")
 
 with col_baseline:
@@ -967,6 +1016,7 @@ with col_baseline:
                 use_container_width=True,
                 config={"displayModeBar": False},
             )
+            risk_context_note(live_baseline)
             st.caption("Updates live with sidebar inputs. Click **Generate counterfactual** for the CF.")
         else:
             st.metric(label="Predicted P(Diabetes=1)", value="—")
@@ -984,12 +1034,7 @@ with col_baseline:
             use_container_width=True,
             config={"displayModeBar": False},
         )
-        prevalence = meta.get("prevalence_test") if meta else None
-        if prevalence is not None:
-            ratio = result["baseline"] / prevalence
-            st.caption(
-                f"Test-set base rate = {prevalence:.3f} → patient is **{ratio:.1f}×** the base rate."
-            )
+        risk_context_note(result["baseline"])
 
 with col_cf:
     st.subheader(f"Counterfactual recommendation (DiCE-{selected_method})")
