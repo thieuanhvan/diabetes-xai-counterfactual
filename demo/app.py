@@ -131,9 +131,11 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.7.2"
+APP_VERSION = "v0.7.4"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
+GLUCO2_URL = "https://gluco2.com"
+GLUCO2_ALIAS = "demo.gluco2.com"
 
 
 @st.cache_data(show_spinner=False)
@@ -657,14 +659,17 @@ if not artifacts_ready:
 # The sidebar button sits below 21 input widgets, so on a laptop viewport it
 # is off-screen on first load. This duplicate fires the identical action; a
 # distinct key prevents a DuplicateWidgetID collision with the sidebar button.
-top_generate_clicked = st.button(
-    "▶  Generate counterfactual",
-    type="primary",
-    use_container_width=True,
-    disabled=not artifacts_ready,
-    key="generate_top",
-    help="Identical to the Generate button at the bottom of the sidebar.",
-)
+# Held to a quarter-width column so it reads as an action, not a banner.
+_btn_col = st.columns([1, 3])[0]
+with _btn_col:
+    top_generate_clicked = st.button(
+        "Generate counterfactual",
+        type="primary",
+        use_container_width=True,
+        disabled=not artifacts_ready,
+        key="generate_top",
+        help="Identical to the Generate button at the bottom of the sidebar.",
+    )
 generate_clicked = bool(generate_clicked) or bool(top_generate_clicked)
 
 
@@ -1212,4 +1217,8 @@ st.caption(
     f"Companion to [Int. J. Med. Inform. (2026), "
     f"doi:10.1016/j.ijmedinf.2026.106555]({PAPER_DOI_URL}) · "
     f"[github.com/thieuanhvan/diabetes-xai-counterfactual]({REPO_URL})"
+)
+st.caption(
+    f"Short link: **{GLUCO2_ALIAS}** · part of "
+    f"[Gluco2]({GLUCO2_URL}), a diabetes data and research initiative"
 )
