@@ -126,13 +126,12 @@ DICE_METHODS = ["random", "kdtree", "genetic"]
 DEFAULT_METHOD = "random"
 N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
-DEFAULT_SEED = 198  # seeds numpy immediately before each DiCE call;
-                    # chosen so the app opens reproducing the reported run
+DEFAULT_SEED = 42   # project convention throughout the repo and the paper
 
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.15.1"
+APP_VERSION = "v0.15.2"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -774,7 +773,7 @@ enforce_constraints = st.sidebar.toggle(
 # been chosen for its outcome. "Custom" keeps every other integer reachable.
 SEED_CHOICES: list = [0, 1, 2, 3, 4, 42, 198]
 SEED_CUSTOM = "Custom…"
-SEED_LABELS = {198: "198 (default, reported run)"}
+SEED_LABELS = {198: "198 (used in the walkthrough video)"}
 
 seed_pick = st.sidebar.selectbox(
     "Random seed",
