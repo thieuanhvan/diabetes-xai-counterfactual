@@ -43,6 +43,9 @@ from src.pipelines.counterfactual.dice_runner import (  # noqa: E402
     DiCERunner,
 )
 from src.pipelines.counterfactual.feature_taxonomy import (  # noqa: E402
+    FEATURE_TAXONOMY,
+    Mutability,
+    get_actionable_features,
     get_discrete_features,
     get_features_to_vary_for_query,
 )
@@ -123,6 +126,7 @@ DICE_METHODS = ["random", "kdtree", "genetic"]
 DEFAULT_METHOD = "random"
 N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
+DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -209,14 +213,21 @@ def load_metadata():
 
 
 @st.cache_resource(show_spinner="Initializing DiCE runner…")
-def get_runner(method: str, _model, _X_train: pd.DataFrame, _y_train: pd.Series):
-    """Build a cached DiCERunner per method. Underscore-prefixed args
-    skip Streamlit hashing (mutable DataFrames)."""
+def get_runner(
+    method: str, per_query: bool, _model, _X_train: pd.DataFrame, _y_train: pd.Series,
+):
+    """Build a cached DiCERunner per (method, constraint-mode). Underscore-prefixed
+    args skip Streamlit hashing (mutable DataFrames).
+
+    `per_query` MUST stay a positional cache-key argument: it selects a different
+    constraint regime inside DiCERunner.generate, so a shared cache entry across
+    the two modes would silently return the wrong runner.
+    """
     cfg = DiCEConfig(
         method=method,
         n_counterfactuals=N_COUNTERFACTUALS,
         desired_class=DESIRED_CLASS,
-        per_query=True,
+        per_query=per_query,
     )
     return DiCERunner(
         model=_model,
@@ -258,13 +269,46 @@ def compute_feature_delta(query: pd.Series, cf: pd.Series) -> pd.DataFrame:
             continue
         v0, v1 = query[f], cf[f]
         if pd.notna(v0) and pd.notna(v1) and v0 != v1:
+            spec = FEATURE_TAXONOMY.get(f)
             rows.append({
                 "feature": f,
                 "current": v0,
                 "counterfactual": v1,
                 "delta": v1 - v0,
+                "class": spec.mutability.value if spec else "-",
+                "direction check": direction_check(f, v0, v1),
             })
     return pd.DataFrame(rows)
+
+
+DIR_OK = "ok"
+DIR_VIOLATION = "direction violation"
+DIR_IMMUTABLE = "immutable violation"
+DIR_CONDITIONAL = "conditional violation"
+
+
+def direction_check(feature: str, v0: float, v1: float) -> str:
+    """Label one feature change against the directional intervention taxonomy.
+
+    Mirrors the violation accounting in
+    `src/pipelines/evaluate/cf_metrics.py` (Eq. 1 numerator terms). Returned
+    for display only — it does not alter CF generation.
+    """
+    spec = FEATURE_TAXONOMY.get(feature)
+    if spec is None:
+        return DIR_OK
+    a, b = float(v0), float(v1)
+    if a == b:
+        return DIR_OK
+    if spec.mutability == Mutability.IMMUTABLE:
+        return DIR_IMMUTABLE
+    if spec.mutability == Mutability.CONDITIONAL:
+        return DIR_CONDITIONAL
+    if spec.mutability == Mutability.MONOTONIC_UP and b < a:
+        return DIR_VIOLATION
+    if spec.mutability == Mutability.MONOTONIC_DOWN and b > a:
+        return DIR_VIOLATION
+    return DIR_OK
 
 
 def get_method_data(result: dict | None, method: str) -> dict | None:
@@ -279,11 +323,18 @@ def get_method_data(result: dict | None, method: str) -> dict | None:
 
 def run_one_method(
     method: str, query_df: pd.DataFrame, model, X_train, y_train,
+    per_query: bool = True, seed: int = DEFAULT_SEED,
 ) -> dict:
-    """Run one DiCE method on a single query; return a per-method result block."""
+    """Run one DiCE method on a single query; return a per-method result block.
+
+    `seed` is applied to numpy immediately before generation. This makes
+    DiCE-`random` reproducible across sessions. It does NOT make DiCE-`genetic`
+    reproducible — dice-ml 0.12 exposes no seed for the genetic search.
+    """
     try:
-        runner = get_runner(method, model, X_train, y_train)
+        runner = get_runner(method, per_query, model, X_train, y_train)
         with st.spinner(f"DiCE-{method}: generating {N_COUNTERFACTUALS} CFs…"):
+            np.random.seed(int(seed))
             cf_examples = runner.generate(query_df)
 
         if not cf_examples or cf_examples[0] is None:
@@ -327,6 +378,16 @@ def apply_preset():
             st.session_state[f"input_{feature}"] = value
     # Always clear stale CF result on preset change — even Custom — because
     # the user is signalling "I want a fresh look".
+    st.session_state.cf_result = None
+
+
+def clear_cf_result():
+    """Invalidate the cached CF whenever a generation setting changes.
+
+    Without this, flipping the constraint toggle would leave the previous
+    mode's counterfactual on screen until the user clicks Generate — the
+    single most misleading state this app can be in.
+    """
     st.session_state.cf_result = None
 
 
@@ -378,6 +439,45 @@ for group_title, feature_names in FEATURE_GROUPS:
 
 st.sidebar.divider()
 
+st.sidebar.markdown("**Generation settings**")
+
+enforce_constraints = st.sidebar.toggle(
+    "Directional constraints (taxonomy)",
+    value=True,
+    key="enforce_constraints",
+    on_change=clear_cf_result,
+    help=(
+        "ON  = per-query mode. Features already at a monotonic extreme are "
+        "dropped, and permitted_range is clipped to the taxonomy-correct "
+        "direction — a CF can only push a feature the way an intervention "
+        "could plausibly push it.\n\n"
+        "OFF = global mode. Only the 4 immutable features stay locked; "
+        "every other feature may move in either direction over its full "
+        "range. This is the unconstrained baseline reported in the paper "
+        "(Table: global vs per-query)."
+    ),
+)
+
+seed_value = st.sidebar.number_input(
+    "Random seed",
+    min_value=0,
+    max_value=10_000,
+    value=DEFAULT_SEED,
+    step=1,
+    key="seed_value",
+    on_change=clear_cf_result,
+    help=(
+        "Applied to numpy immediately before each DiCE call. Makes "
+        "DiCE-`random` reproducible run-to-run. DiCE-`genetic` has no seed "
+        "hook in dice-ml 0.12 and will still vary."
+    ),
+)
+
+if enforce_constraints:
+    st.sidebar.success("Constraints ON — per-query (taxonomy-enforced)")
+else:
+    st.sidebar.warning("Constraints OFF — global (immutable-only baseline)")
+
 generate_clicked = st.sidebar.button(
     "Generate counterfactual",
     type="primary",
@@ -385,9 +485,9 @@ generate_clicked = st.sidebar.button(
     disabled=not artifacts_ready,
     help=(
         f"Run ALL {len(DICE_METHODS)} DiCE methods (random / kdtree / genetic) "
-        f"in per-query mode on the current patient — {N_COUNTERFACTUALS} CFs "
-        "each. The method selector below picks which method's full "
-        "narrative + waterfall to display in the main panel; the "
+        f"on the current patient in the selected constraint mode — "
+        f"{N_COUNTERFACTUALS} CFs each. The method selector below picks which "
+        "method's full narrative + waterfall to display in the main panel; the "
         "side-by-side section compares all three best CFs."
     )
     if artifacts_ready
@@ -457,13 +557,26 @@ predicted risk among the N candidates. Other candidates appear in the
 
 **Why three methods (random / kdtree / genetic)?**
 DiCE-ML implements multiple CF-search strategies. `random` samples
-perturbations stochastically (fast, diverse but non-deterministic).
-`kdtree` finds the nearest training-set neighbor (deterministic, tied
-to real patients). `genetic` runs an evolutionary search over the
-feature space (deterministic with seed, optimizes proximity + diversity
-explicitly). **They typically produce different "best" CFs for the same
-patient.** This is the central audit-then-act observation: a single
-method's recommendation is only one possible operational answer.
+perturbations stochastically — seeded here via the sidebar, so it is
+reproducible run-to-run. `kdtree` finds the nearest training-set
+neighbour (deterministic, tied to real patients, but it returns nothing
+when no neighbour satisfies the constraints). `genetic` runs an
+evolutionary search optimising proximity + diversity explicitly;
+**dice-ml 0.12 exposes no seed for it, so its output varies between
+runs even at a fixed sidebar seed.** They typically produce different
+"best" CFs for the same patient. This is the central audit-then-act
+observation: a single method's recommendation is only one possible
+operational answer.
+
+**What does the 'Directional constraints' toggle do?**
+It selects between the two regimes compared in the paper. **ON**
+(per-query) drops features already at a monotonic extreme and clips
+`permitted_range` to the taxonomy-correct direction. **OFF** (global)
+locks only the 4 immutable features and lets every other feature move
+either way across its full range. Turning it OFF is how you see what
+the taxonomy is actually buying: the model will happily reach for
+changes like *stop getting cholesterol checks* — a real risk reduction
+on the model's decision surface, and clinically indefensible advice.
 """
     )
 
@@ -506,7 +619,12 @@ if "cf_result" not in st.session_state:
 if generate_clicked and artifacts_ready:
     query_df = patient_to_query_df(patient)
     baseline = float(predict_proba(model, query_df)[0])
-    ftv = get_features_to_vary_for_query(query_df.iloc[0])
+    # Mirror the two branches inside DiCERunner.generate so the on-screen
+    # "N of 21 varied" caption matches what DiCE was actually given.
+    if enforce_constraints:
+        ftv = get_features_to_vary_for_query(query_df.iloc[0])
+    else:
+        ftv = get_actionable_features()
 
     if not ftv:
         st.session_state.cf_result = {
@@ -517,10 +635,15 @@ if generate_clicked and artifacts_ready:
                 "sidebar (e.g. higher BMI, PhysActivity=0)."
             ),
             "baseline": baseline,
+            "constrained": bool(enforce_constraints),
+            "seed": int(seed_value),
         }
     else:
         by_method = {
-            method: run_one_method(method, query_df, model, X_train, y_train)
+            method: run_one_method(
+                method, query_df, model, X_train, y_train,
+                per_query=enforce_constraints, seed=int(seed_value),
+            )
             for method in DICE_METHODS
         }
         st.session_state.cf_result = {
@@ -529,15 +652,30 @@ if generate_clicked and artifacts_ready:
             "by_method": by_method,
             "query": query_df.iloc[0],
             "n_features_varied": len(ftv),
+            "constrained": bool(enforce_constraints),
+            "seed": int(seed_value),
         }
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Main panel — two-column (Baseline | CF for selected method)
 # ─────────────────────────────────────────────────────────────────────
-col_baseline, col_cf = st.columns(2, gap="large")
 result = st.session_state.cf_result
 method_data = get_method_data(result, selected_method)
+
+if result is not None:
+    if result.get("constrained", True):
+        st.info(
+            f"Displayed result: **directional constraints ON** (per-query) · "
+            f"seed {result.get('seed', DEFAULT_SEED)}"
+        )
+    else:
+        st.warning(
+            f"Displayed result: **directional constraints OFF** (global baseline) · "
+            f"seed {result.get('seed', DEFAULT_SEED)}"
+        )
+
+col_baseline, col_cf = st.columns(2, gap="large")
 
 with col_baseline:
     st.subheader("Baseline risk")
@@ -625,10 +763,18 @@ with col_cf:
             use_container_width=True,
             config={"displayModeBar": False},
         )
-        st.caption(
-            f"DiCE varied **{result['n_features_varied']}** of 21 features "
-            f"(immutable + at-extreme excluded per `feature_taxonomy.py`)."
-        )
+        if result.get("constrained", True):
+            st.caption(
+                f"DiCE varied **{result['n_features_varied']}** of 21 features — "
+                "**constraints ON** (immutable + at-extreme excluded, direction "
+                "clipped per `feature_taxonomy.py`)."
+            )
+        else:
+            st.caption(
+                f"DiCE varied **{result['n_features_varied']}** of 21 features — "
+                "**constraints OFF** (only the 4 immutable features locked; "
+                "direction unrestricted)."
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -644,8 +790,31 @@ if method_data is not None:
     if delta_df.empty:
         st.info("No feature changes detected. The model already predicts the desired class for this profile after rounding.")
     else:
+        violations = delta_df[delta_df["direction check"] != DIR_OK]
+        if len(violations):
+            offenders = ", ".join(
+                f"`{r['feature']}` {float(r['current']):g}→"
+                f"{float(r['counterfactual']):g} ({r['direction check']})"
+                for _, r in violations.iterrows()
+            )
+            st.error(
+                f"**{len(violations)} of {len(delta_df)} changes violate the "
+                f"intervention taxonomy:** {offenders}"
+            )
+        else:
+            st.success(
+                f"All {len(delta_df)} changes are taxonomy-consistent — every "
+                "feature moves in a direction an intervention could produce."
+            )
+
+        def _flag_row(row):
+            bad = row["direction check"] != DIR_OK
+            return ["background-color: #ffe0e0" if bad else "" for _ in row]
+
         st.dataframe(
-            delta_df.style.format({
+            delta_df.style
+            .apply(_flag_row, axis=1)
+            .format({
                 "current": "{:.3g}",
                 "counterfactual": "{:.3g}",
                 "delta": "{:+.3g}",
@@ -655,7 +824,9 @@ if method_data is not None:
         )
         st.caption(
             f"Showing only the {len(delta_df)} features that differ between the patient and the best CF. "
-            "Discrete features rounded to int (mirrors `src/pipelines/main.py:114`)."
+            "Discrete features rounded to int (mirrors `src/pipelines/main.py:114`). "
+            "`direction check` compares each change against the feature's taxonomy "
+            "class — it is a post-hoc label, not a filter."
         )
 
         bar_fig = feature_delta_bar(delta_df)
@@ -840,7 +1011,7 @@ with st.expander("Patient input (raw, in model feature order)", expanded=False):
 # ─────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "Diabetes XAI Counterfactual Demo · v0.6.0 · Companion to "
+    "Diabetes XAI Counterfactual Demo · v0.7.0 · Companion to "
     "Int. J. Med. Inform. (2026), doi:10.1016/j.ijmedinf.2026.106555 · "
     "github.com/thieuanhvan/diabetes-xai-counterfactual"
 )
