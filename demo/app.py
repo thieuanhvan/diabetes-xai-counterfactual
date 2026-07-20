@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.7.4"
+APP_VERSION = "v0.8.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -183,28 +183,33 @@ MODEL_FEATURE_ORDER = [
     "MentHlth", "PhysHlth", "DiffWalk", "Sex", "Age", "Education", "Income",
 ]
 
+# Sidebar input spec. The `default` values are NOT invented: they are the
+# rank-32 patient of the top-200 high-risk cohort, lifted verbatim from
+# demo/models/X_test.parquet, so the app opens on a real member of the
+# population the Action phase actually targets (P(Diabetes=1) = 0.786).
+# The same row is also available from the preset dropdown.
 FEATURE_SPEC = {
     "Age":             {"label": "Age category (1=18-24 … 13=80+)",         "min": 1,    "max": 13,   "default": 6,   "step": 1,   "type": "int"},
     "Sex":             {"label": "Sex (0=female, 1=male)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Education":       {"label": "Education (1=none … 6=college grad)",     "min": 1,    "max": 6,    "default": 4,    "step": 1,   "type": "int"},
-    "Income":          {"label": "Income 2021 (1=<\\$10K … 11=>=\\$200K)",   "min": 1,    "max": 11,   "default": 6,    "step": 1,   "type": "int"},
-    "BMI":             {"label": "BMI (kg/m²)",                             "min": 12.0, "max": 60.0, "default": 24.2, "step": 0.1, "type": "float"},
+    "Education":       {"label": "Education (1=none … 6=college grad)",     "min": 1,    "max": 6,    "default": 5,    "step": 1,   "type": "int"},
+    "Income":          {"label": "Income 2021 (1=<\\$10K … 11=>=\\$200K)",   "min": 1,    "max": 11,   "default": 5,    "step": 1,   "type": "int"},
+    "BMI":             {"label": "BMI (kg/m²)",                             "min": 12.0, "max": 60.0, "default": 45.0, "step": 0.1, "type": "float"},
     "HighBP":          {"label": "High blood pressure (0/1)",               "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "HighChol":        {"label": "High cholesterol (0/1)",                  "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Stroke":          {"label": "Ever had stroke (0/1, immutable)",        "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
+    "Stroke":          {"label": "Ever had stroke (0/1, immutable)",        "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "HeartDiseaseorAttack": {"label": "CHD or MI history (0/1, immutable)", "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "DiffWalk":        {"label": "Serious difficulty walking (0/1)",        "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "Smoker":          {"label": "Smoked ≥100 cigarettes lifetime (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
-    "PhysActivity":    {"label": "Physical activity past 30 days (0/1)",    "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Fruits":          {"label": "Fruit ≥1/day (0/1)",                      "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "Veggies":         {"label": "Vegetables ≥1/day (0/1)",                 "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
+    "PhysActivity":    {"label": "Physical activity past 30 days (0/1)",    "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
+    "Fruits":          {"label": "Fruit ≥1/day (0/1)",                      "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
+    "Veggies":         {"label": "Vegetables ≥1/day (0/1)",                 "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "HvyAlcoholConsump": {"label": "Heavy alcohol consumption (0/1)",       "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "AnyHealthcare":   {"label": "Has healthcare coverage (0/1)",           "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
     "NoDocbcCost":     {"label": "Couldn't see doctor due to cost (0/1)",   "min": 0,    "max": 1,    "default": 0,    "step": 1,   "type": "int"},
     "CholCheck":       {"label": "Cholesterol check past 5 years (0/1)",    "min": 0,    "max": 1,    "default": 1,    "step": 1,   "type": "int"},
-    "GenHlth":         {"label": "General health (1=Excellent … 5=Poor)",   "min": 1,    "max": 5,    "default": 3,    "step": 1,   "type": "int"},
-    "MentHlth":        {"label": "Bad mental health days past 30",          "min": 0,    "max": 30,   "default": 2,    "step": 1,   "type": "int"},
-    "PhysHlth":        {"label": "Bad physical health days past 30",        "min": 0,    "max": 30,   "default": 5,    "step": 1,   "type": "int"},
+    "GenHlth":         {"label": "General health (1=Excellent … 5=Poor)",   "min": 1,    "max": 5,    "default": 5,    "step": 1,   "type": "int"},
+    "MentHlth":        {"label": "Bad mental health days past 30",          "min": 0,    "max": 30,   "default": 0,    "step": 1,   "type": "int"},
+    "PhysHlth":        {"label": "Bad physical health days past 30",        "min": 0,    "max": 30,   "default": 0,    "step": 1,   "type": "int"},
 }
 
 FEATURE_GROUPS = [
@@ -565,6 +570,14 @@ st.sidebar.caption(
 st.title("Diabetes Risk — Counterfactual Recommendations")
 st.caption(
     "Knowledge-Guided Counterfactual Explanations · Directional Intervention Taxonomy · BRFSS 2021"
+)
+
+st.warning(
+    "**Research tool, not medical advice.** This app exists to show how "
+    "counterfactual explanations behave with and without a directional "
+    "intervention taxonomy. It does not diagnose, screen, or recommend "
+    "treatment, and its outputs are not causal claims. Do not use it to make "
+    "decisions about your own health — talk to a clinician."
 )
 
 with st.expander(
