@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.13.0"
+APP_VERSION = "v0.14.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -197,7 +197,7 @@ FEATURE_SPEC = {
         # A bare "6" reads as six years old. The code_prefix makes the dropdown
         # render "Group 6 (45-49 years old)" while still storing the integer 6.
         "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 6, "step": 1, "type": "int",
-        "code_prefix": "Group ",
+        "fmt": "Group {code} ({label})",
         "choices": {
             1: "18-24 years old", 2: "25-29 years old", 3: "30-34 years old",
             4: "35-39 years old", 5: "40-44 years old", 6: "45-49 years old",
@@ -286,11 +286,26 @@ FEATURE_SPEC = {
         "choices": {0: "No", 1: "Yes"},
     },
     "GenHlth": {
-        "label": "GenHlth - self-rated general health", "min": 1, "max": 5, "default": 5, "step": 1, "type": "int",
+        "label": "GenHlth - self-rated general health (1 = best, 5 = worst)", "min": 1, "max": 5, "default": 5, "step": 1, "type": "int",
         "choices": {1: "Excellent", 2: "Very good", 3: "Good", 4: "Fair", 5: "Poor"},
     },
-    "MentHlth": {"label": "MentHlth - days of poor mental health in past 30", "min": 0, "max": 30, "default": 0, "step": 1, "type": "int"},
-    "PhysHlth": {"label": "PhysHlth - days of poor physical health in past 30", "min": 0, "max": 30, "default": 0, "step": 1, "type": "int"},
+    # The raw BRFSS column names carry no "poor", but both count days health was
+    # NOT good. Spelling that out in the label prevents the exact inversion a
+    # reader falls into otherwise: more days is worse, not better.
+    "MentHlth": {
+        "label": "MentHlth - days mental health was NOT good, in the past 30",
+        "min": 0, "max": 30, "default": 0, "step": 1, "type": "int",
+        "fmt": "{label}",
+        "choices": {d: ("0 days" if d == 0 else f"{d} day" if d == 1 else f"{d} days")
+                    for d in range(0, 31)},
+    },
+    "PhysHlth": {
+        "label": "PhysHlth - days physical health was NOT good, in the past 30",
+        "min": 0, "max": 30, "default": 0, "step": 1, "type": "int",
+        "fmt": "{label}",
+        "choices": {d: ("0 days" if d == 0 else f"{d} day" if d == 1 else f"{d} days")
+                    for d in range(0, 31)},
+    },
 }
 
 FEATURE_GROUPS = [
@@ -705,11 +720,11 @@ for group_title, feature_names in FEATURE_GROUPS:
             # Dropdown over the BRFSS codes. The stored value stays the numeric
             # code, so presets, the model input, and every downstream table are
             # untouched; only the on-screen text changes.
-            _pfx = spec.get("code_prefix", "")
+            _fmt = spec.get("fmt", "{code} ({label})")
             patient[fname] = st.sidebar.selectbox(
                 spec["label"],
                 options=list(choices.keys()),
-                format_func=lambda v, _c=choices, _p=_pfx: f"{_p}{v} ({_c[v]})",
+                format_func=lambda v, _c=choices, _f=_fmt: _f.format(code=v, label=_c[v]),
                 key=f"input_{fname}",
             )
         elif spec["type"] == "float":
@@ -878,6 +893,15 @@ runs even at a fixed sidebar seed.** They typically produce different
 "best" CFs for the same patient. This is the central audit-then-act
 observation: a single method's recommendation is only one possible
 operational answer.
+
+**Careful: "monotonic up" and "monotonic down" describe the CODED VALUE, not health.**
+A feature's class says which way an intervention may move its number, not
+whether the person gets better. For `GenHlth` (1 = excellent, 5 = poor),
+`MentHlth` and `PhysHlth` (days health was not good), and `HighBP` /
+`HighChol` / `Smoker` (1 = yes), the healthier direction is DOWNWARD, so
+those are `monotonic_down`. For `PhysActivity`, `Fruits`, `CholCheck` and
+`AnyHealthcare` the healthier direction is upward. Reading "monotonic down"
+as "health declines" inverts the meaning of the entire taxonomy.
 
 **What does the 'Directional constraints' toggle do?**
 It selects between the two regimes compared in the paper. **ON**
