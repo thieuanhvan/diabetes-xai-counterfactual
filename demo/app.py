@@ -947,6 +947,144 @@ if method_data is not None:
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Export run report — plain text, reproducible, paste-friendly
+# ─────────────────────────────────────────────────────────────────────
+def _env_versions() -> dict:
+    """Package versions that actually affect CF output."""
+    import platform
+    from importlib.metadata import PackageNotFoundError, version
+    out = {"python": platform.python_version()}
+    for pkg in ("streamlit", "dice-ml", "xgboost", "scikit-learn",
+                "pandas", "numpy"):
+        try:
+            out[pkg] = version(pkg)
+        except PackageNotFoundError:
+            out[pkg] = "not installed"
+    return out
+
+
+def build_run_report(result: dict, meta: dict | None) -> str:
+    """Render the whole run as plain text: inputs, settings, every method.
+
+    Everything reported is read back from `result`, i.e. the state frozen when
+    Generate was clicked — not from the live sidebar. If the sidebar was edited
+    after generating, the report still describes the run that produced the
+    numbers on screen.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    vn_now = datetime.now(timezone(timedelta(hours=7)))
+    L: list[str] = []
+    L.append("# Counterfactual Run Report")
+    L.append("")
+    L.append(f"- Generated: {vn_now:%Y-%m-%d %H:%M} (UTC+7)")
+    L.append("- App: diabetes-xai-counterfactual demo v0.7.0")
+    L.append("- Paper: Int. J. Med. Inform. (2026), doi:10.1016/j.ijmedinf.2026.106555")
+    if meta:
+        L.append(
+            f"- Model: XGBoost · test AUC {meta.get('test_auc', '?')} · "
+            f"n_train {meta.get('n_train', '?'):,} · n_test {meta.get('n_test', '?'):,} · "
+            f"test prevalence {meta.get('prevalence_test', '?')}"
+        )
+    L.append("")
+
+    L.append("## Generation Settings")
+    L.append("")
+    mode = "ON (per-query, taxonomy-enforced)" if result.get("constrained", True) \
+        else "OFF (global, immutable-only baseline)"
+    L.append(f"- Directional constraints: **{mode}**")
+    L.append(f"- Random seed: {result.get('seed', DEFAULT_SEED)}")
+    L.append(f"- CFs requested per method: {N_COUNTERFACTUALS}")
+    L.append(f"- Desired class: {DESIRED_CLASS} (non-diabetic)")
+    if "n_features_varied" in result:
+        L.append(f"- Features DiCE was allowed to vary: {result['n_features_varied']} of 21")
+    L.append("")
+    L.append("Reminder: DiCE-`random` is reproducible at a fixed seed. "
+             "DiCE-`genetic` is not — dice-ml 0.12 exposes no seed for it.")
+    L.append("")
+
+    L.append("## Patient Profile (frozen at Generate)")
+    L.append("")
+    q = result["query"]
+    L.append("| feature | value | taxonomy class |")
+    L.append("|---|---|---|")
+    for f in MODEL_FEATURE_ORDER:
+        spec = FEATURE_TAXONOMY.get(f)
+        cls = spec.mutability.value if spec else "-"
+        L.append(f"| {f} | {float(q[f]):g} | {cls} |")
+    L.append("")
+    L.append(f"- Baseline P(Diabetes=1): **{result['baseline']:.4f}**")
+    _p_all = load_proba_test()
+    if _p_all is not None:
+        _rank = int((_p_all > result["baseline"]).sum()) + 1
+        L.append(f"- Rank in test set: {_rank:,} of {len(_p_all):,}")
+    L.append("")
+
+    L.append("## Results By Method")
+    L.append("")
+    for method in DICE_METHODS:
+        block = result["by_method"].get(method, {})
+        L.append(f"### DiCE-{method}")
+        L.append("")
+        if not block.get("ok"):
+            L.append(f"FAILED: {block.get('reason', 'unknown')}")
+            L.append("")
+            continue
+        probas = block["cf_probas"]
+        bi = block["best_idx"]
+        L.append(f"- All {len(probas)} CF risks: "
+                 + ", ".join(f"{float(x):.4f}" for x in probas))
+        L.append(f"- Best CF risk: **{float(probas[bi]):.4f}** "
+                 f"(delta {float(probas[bi]) - result['baseline']:+.4f})")
+        d = compute_feature_delta(q, block["cfs_df"].iloc[bi])
+        if d.empty:
+            L.append("- Changes: none")
+            L.append("")
+            continue
+        n_bad = int((d["direction check"] != DIR_OK).sum())
+        L.append(f"- Changes: {len(d)} · taxonomy violations: {n_bad}")
+        L.append("")
+        L.append("| feature | current | counterfactual | delta | class | direction check |")
+        L.append("|---|---|---|---|---|---|")
+        for _, r in d.iterrows():
+            L.append(
+                f"| {r['feature']} | {float(r['current']):g} | "
+                f"{float(r['counterfactual']):g} | {float(r['delta']):+g} | "
+                f"{r['class']} | {r['direction check']} |"
+            )
+        L.append("")
+
+    L.append("## Environment")
+    L.append("")
+    for k, v in _env_versions().items():
+        L.append(f"- {k}: {v}")
+    L.append("")
+    return "\n".join(L)
+
+
+if result is not None and result.get("ok"):
+    st.divider()
+    st.subheader("Export run report")
+    st.caption(
+        "Plain-text summary of this exact run: inputs, constraint mode, seed, "
+        "and every method's counterfactuals with taxonomy checks. Copy it with "
+        "the button in the top-right of the box, or download it as a file."
+    )
+    report_text = build_run_report(result, meta)
+    st.code(report_text, language="markdown")
+
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    _stamp = _dt.now(_tz(_td(hours=7))).strftime("%Y%m%d_%H%M")
+    _mode_tag = "constrained" if result.get("constrained", True) else "unconstrained"
+    st.download_button(
+        "Download report (.md)",
+        data=report_text,
+        file_name=f"cf_run_report_{_mode_tag}_seed{result.get('seed', DEFAULT_SEED)}_{_stamp}.md",
+        mime="text/markdown",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Patient input echo
 # ─────────────────────────────────────────────────────────────────────
 with st.expander("📊 Cohort context — top-200 high-risk (reference for presentation)", expanded=False):
