@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # seeds numpy immediately before each DiCE call
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.9.0"
+APP_VERSION = "v0.9.1"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -570,7 +570,7 @@ for group_title, feature_names in FEATURE_GROUPS:
             patient[fname] = st.sidebar.selectbox(
                 spec["label"],
                 options=list(choices.keys()),
-                format_func=lambda v, _c=choices: f"{v} - {_c[v]}",
+                format_func=lambda v, _c=choices: f"{v} ({_c[v]})",
                 key=f"input_{fname}",
             )
         elif spec["type"] == "float":
@@ -686,8 +686,8 @@ st.caption(
 
 st.warning(
     "**Research tool, not medical advice.** This app is the companion artifact "
-    "of a peer-reviewed *methods* paper (Thieu, 2026, *Int. J. Med. Inform.* "
-    f"106555, [doi:10.1016/j.ijmedinf.2026.106555]({PAPER_DOI_URL})), which "
+    "of a peer-reviewed *methods* paper (*Int. J. Med. Inform.* 2026, 106555, "
+    f"[doi:10.1016/j.ijmedinf.2026.106555]({PAPER_DOI_URL})), which "
     "studies how counterfactual explanations behave with and without a "
     "directional intervention taxonomy. It is not a clinical validation study. "
     "The app does not diagnose, screen, or recommend treatment, and its outputs "
