@@ -126,18 +126,16 @@ DICE_METHODS = ["random", "kdtree", "genetic"]
 DEFAULT_METHOD = "random"
 N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
-# The pipeline configs use random_state 42 for the batch experiments; that is a
-# different thing from this widget, which only reseeds DiCE-random for a single
-# interactive query. The default is chosen so a first-time visitor sees the
-# behaviour the paper describes without changing anything: on the default
-# profile, 80% of seeds produce a direction violation without constraints, and
-# this is one of them.
-DEFAULT_SEED = 3
+# 42, the same value the pipeline configs use for the batch experiments. On the
+# default profile 85% of seeds produce a direction violation without
+# constraints, and 42 is one of them, so no seed had to be picked for its
+# outcome.
+DEFAULT_SEED = 42
 
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.19.0"
+APP_VERSION = "v0.20.2"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -190,12 +188,11 @@ MODEL_FEATURE_ORDER = [
 ]
 
 # Sidebar input spec. The `default` values are NOT invented: they are the
-# rank-200 patient of the top-200 high-risk cohort, lifted verbatim from
-# demo/models/X_test.parquet (P(Diabetes=1) = 0.6948). Rank 200 sits exactly at
-# the cohort boundary, i.e. the LOWEST-risk member of the population the Action
-# phase targets. Opening there is deliberate: if the unconstrained generator
-# still produces clinically indefensible advice for the mildest case in the
-# cohort, the problem is clearly not an artefact of one extreme patient.
+# rank-170 patient of the top-200 high-risk cohort, lifted verbatim from
+# demo/models/X_test.parquet (P(Diabetes=1) = 0.7063). Chosen so the app can
+# open on the repo's conventional seed 42 rather than a seed picked for its
+# outcome; BMI 43 is the cohort median (cohort median 43, mean 45, 68% at or
+# above 40), and the profile carries no stroke or cardiac history.
 FEATURE_SPEC = {
     # `choices` maps the stored BRFSS code to its codebook meaning. When present,
     # the sidebar renders a dropdown showing "code - meaning" while still storing
@@ -204,7 +201,7 @@ FEATURE_SPEC = {
     "Age": {
         # A bare "6" reads as six years old. The code_prefix makes the dropdown
         # render "Group 6 (45-49 years old)" while still storing the integer 6.
-        "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 8, "step": 1, "type": "int",
+        "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 7, "step": 1, "type": "int",
         "fmt": "Group {code} ({label})",
         "choices": {
             1: "18-24 years old", 2: "25-29 years old", 3: "30-34 years old",
@@ -219,7 +216,7 @@ FEATURE_SPEC = {
         "choices": {0: "Female", 1: "Male"},
     },
     "Education": {
-        "label": "Education - highest level completed", "min": 1, "max": 6, "default": 4, "step": 1, "type": "int",
+        "label": "Education - highest level completed", "min": 1, "max": 6, "default": 5, "step": 1, "type": "int",
         "choices": {
             1: "Never attended school or only kindergarten",
             2: "Grades 1-8 (elementary)",
@@ -230,7 +227,7 @@ FEATURE_SPEC = {
         },
     },
     "Income": {
-        "label": "Income - annual household income (2021 brackets)", "min": 1, "max": 11, "default": 5, "step": 1, "type": "int",
+        "label": "Income - annual household income (2021 brackets)", "min": 1, "max": 11, "default": 6, "step": 1, "type": "int",
         "choices": {
             1: "Less than $10,000", 2: "$10,000 to less than $15,000",
             3: "$15,000 to less than $20,000", 4: "$20,000 to less than $25,000",
@@ -240,7 +237,7 @@ FEATURE_SPEC = {
             11: "$200,000 or more",
         },
     },
-    "BMI": {"label": "BMI - body mass index (kg/m\u00b2)", "min": 12.0, "max": 60.0, "default": 38.0, "step": 0.1, "type": "float"},
+    "BMI": {"label": "BMI - body mass index (kg/m\u00b2)", "min": 12.0, "max": 60.0, "default": 43.0, "step": 0.1, "type": "float"},
     "HighBP": {
         "label": "HighBP - told they have high blood pressure", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
@@ -258,7 +255,7 @@ FEATURE_SPEC = {
         "choices": {0: "No", 1: "Yes"},
     },
     "DiffWalk": {
-        "label": "DiffWalk - serious difficulty walking or climbing stairs", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "label": "DiffWalk - serious difficulty walking or climbing stairs", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "Smoker": {
@@ -266,15 +263,15 @@ FEATURE_SPEC = {
         "choices": {0: "No", 1: "Yes"},
     },
     "PhysActivity": {
-        "label": "PhysActivity - physical activity in the past 30 days", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "label": "PhysActivity - physical activity in the past 30 days", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "Fruits": {
-        "label": "Fruits - eats fruit at least once a day", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "label": "Fruits - eats fruit at least once a day", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "Veggies": {
-        "label": "Veggies - eats vegetables at least once a day", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "label": "Veggies - eats vegetables at least once a day", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "HvyAlcoholConsump": {
@@ -302,14 +299,14 @@ FEATURE_SPEC = {
     # reader falls into otherwise: more days is worse, not better.
     "MentHlth": {
         "label": "MentHlth - days mental health was NOT good, in the past 30",
-        "min": 0, "max": 30, "default": 0, "step": 1, "type": "int",
+        "min": 0, "max": 30, "default": 15, "step": 1, "type": "int",
         "fmt": "{label}",
         "choices": {d: ("0 days" if d == 0 else f"{d} day" if d == 1 else f"{d} days")
                     for d in range(0, 31)},
     },
     "PhysHlth": {
         "label": "PhysHlth - days physical health was NOT good, in the past 30",
-        "min": 0, "max": 30, "default": 30, "step": 1, "type": "int",
+        "min": 0, "max": 30, "default": 25, "step": 1, "type": "int",
         "fmt": "{label}",
         "choices": {d: ("0 days" if d == 0 else f"{d} day" if d == 1 else f"{d} days")
                     for d in range(0, 31)},
@@ -820,8 +817,8 @@ st.sidebar.caption(
     "searches; the "
     "model itself is fully deterministic. On the profile this app opens with, "
     "sweeping seeds 0 to 200 with constraints **OFF** produced at least one "
-    "direction violation in **80%** of runs (161 of 201), and the violated "
-    "feature was `CholCheck` in 153 of them. The phenomenon is not "
+    "direction violation in **85%** of runs (171 of 201), and the violated "
+    "feature was `CholCheck` in 166 of them. The phenomenon is not "
     "seed-specific; try your own seed."
 )
 
@@ -1388,8 +1385,43 @@ if method_data is not None:
         expanded=False,
     ):
         cfs_display = method_data["cfs_df"].copy()
-        cfs_display.insert(0, "P(Diabetes=1)", method_data["cf_probas"].round(3))
-        st.dataframe(cfs_display, use_container_width=True)
+        _q = result["query"]
+        # Mark every cell that differs from the patient. Reading five raw rows
+        # of 21 numbers is otherwise hopeless, and the point of showing all five
+        # is precisely that they trade risk reduction against how much has to
+        # change: the lowest-risk row is often the one asking for the most.
+        _n_changes = [
+            int(sum(1 for f in MODEL_FEATURE_ORDER
+                    if float(cfs_display.iloc[i][f]) != float(_q[f])))
+            for i in range(len(cfs_display))
+        ]
+        cfs_display.insert(0, "changes", _n_changes)
+        cfs_display.insert(0, "P(Diabetes=1)", method_data["cf_probas"].round(4))
+
+        def _mark_changes(df):
+            styles = pd.DataFrame("", index=df.index, columns=df.columns)
+            for f in MODEL_FEATURE_ORDER:
+                if f not in df.columns:
+                    continue
+                for i in df.index:
+                    if float(df.at[i, f]) != float(_q[f]):
+                        styles.at[i, f] = "background-color: #ffd6d6; font-weight: 600"
+            return styles
+
+        st.dataframe(
+            cfs_display.style.apply(_mark_changes, axis=None),
+            use_container_width=True,
+        )
+        _best = int(np.argmin(method_data["cf_probas"]))
+        st.caption(
+            f"Red cells differ from the patient. Row {_best} scores lowest "
+            f"({float(method_data['cf_probas'][_best]):.4f}) and asks for "
+            f"{_n_changes[_best]} change(s). **Lowest risk is not automatically "
+            "the best recommendation.** A counterfactual demanding several "
+            "simultaneous changes, or one very large change, is harder to act on "
+            "than a modest single change that scores worse. Read this table as a "
+            "menu with different costs, not a ranking."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
