@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # project convention throughout the repo and the paper
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.15.2"
+APP_VERSION = "v0.15.3"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -773,7 +773,7 @@ enforce_constraints = st.sidebar.toggle(
 # been chosen for its outcome. "Custom" keeps every other integer reachable.
 SEED_CHOICES: list = [0, 1, 2, 3, 4, 42, 198]
 SEED_CUSTOM = "Custom…"
-SEED_LABELS = {198: "198 (used in the walkthrough video)"}
+SEED_LABELS: dict = {}   # plain numbers; the caption below explains the list
 
 seed_pick = st.sidebar.selectbox(
     "Random seed",
