@@ -131,7 +131,7 @@ DEFAULT_SEED = 42   # project convention throughout the repo and the paper
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.15.3"
+APP_VERSION = "v0.16.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -1609,10 +1609,43 @@ with st.expander("📋 Top-200 high-risk cohort — full list (the Action-phase 
 
 
 with st.expander("Patient input (raw, in model feature order)", expanded=False):
-    ordered = {f: patient[f] for f in MODEL_FEATURE_ORDER}
+    # A single "value" column stretches to the full container width and leaves
+    # the number stranded on the right. Rather than pad with an empty column,
+    # spend the space on information the reader actually needs: what the code
+    # means, and which taxonomy class governs it.
+    _rows = []
+    for _f in MODEL_FEATURE_ORDER:
+        _spec = FEATURE_SPEC.get(_f, {})
+        _val = patient[_f]
+        _choices = _spec.get("choices")
+        if _choices is not None:
+            _meaning = _choices.get(int(round(float(_val))), "")
+        elif _f == "BMI":
+            _meaning = "kg/m²"
+        else:
+            _meaning = ""
+        _tax = FEATURE_TAXONOMY.get(_f)
+        _rows.append({
+            "feature": _f,
+            "value": float(_val),
+            "meaning": _meaning,
+            "taxonomy class": _tax.mutability.value if _tax else "-",
+        })
     st.dataframe(
-        pd.DataFrame([ordered]).T.rename(columns={0: "value"}),
+        pd.DataFrame(_rows),
         use_container_width=True,
+        hide_index=True,
+        column_config={
+            "feature": st.column_config.TextColumn(width="medium"),
+            "value": st.column_config.NumberColumn(width="small", format="%g"),
+            "meaning": st.column_config.TextColumn(width="large"),
+            "taxonomy class": st.column_config.TextColumn(width="medium"),
+        },
+    )
+    st.caption(
+        "These 21 values, in this order, are exactly what the model receives. "
+        "`meaning` is the BRFSS codebook label; `taxonomy class` is the direction "
+        "an intervention is allowed to move the feature."
     )
 
 
