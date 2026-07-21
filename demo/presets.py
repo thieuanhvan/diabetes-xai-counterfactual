@@ -7,7 +7,10 @@ CF behaviors without dialing 21 sidebar inputs.
 
 Profiles are CURATED rather than mined from the BRFSS test set — this
 trades real-patient authenticity for cross-machine reproducibility and
-clinical coherence (each archetype tells one clear story).
+clinical coherence (each archetype tells one clear story). The single
+exception is marked in place: one entry is a verbatim BRFSS 2021 test-set
+record, kept so that a demonstration can be tied to a real row rather than
+to an invented one.
 
 The first entry ("Custom") is sentinel: when selected, the sidebar
 inputs are NOT overwritten. All other entries are full 21-feature dicts
@@ -42,6 +45,23 @@ PRESETS: Dict[str, Optional[Dict[str, float]]] = {
         "AnyHealthcare": 1, "NoDocbcCost": 1, "GenHlth": 4,
         "MentHlth": 5, "PhysHlth": 10, "DiffWalk": 1,
         "Sex": 0, "Age": 10, "Education": 4, "Income": 4,
+    },
+
+    # ────────────────────────────────────────────────────────────────
+    # Very high risk — verbatim BRFSS 2021 test-set record.
+    # The one entry in this file that is NOT curated: it is row 161 of the
+    # test set ranked by predicted risk, reproduced field for field.
+    # Predicted P(Diabetes=1) = 0.7110; 11 of 21 features are variable.
+    # CF story: at seed 42 the top recommendation changes GenHlth alone,
+    # and kdtree returns nothing.
+    # ────────────────────────────────────────────────────────────────
+    "Very high risk — BRFSS record, poor self-rated health": {
+        "HighBP": 1, "HighChol": 1, "CholCheck": 1, "BMI": 38.0,
+        "Smoker": 1, "Stroke": 0, "HeartDiseaseorAttack": 0,
+        "PhysActivity": 0, "Fruits": 0, "Veggies": 0, "HvyAlcoholConsump": 0,
+        "AnyHealthcare": 1, "NoDocbcCost": 0, "GenHlth": 5,
+        "MentHlth": 30, "PhysHlth": 30, "DiffWalk": 1,
+        "Sex": 1, "Age": 11, "Education": 6, "Income": 5,
     },
 
     # ────────────────────────────────────────────────────────────────
