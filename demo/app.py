@@ -579,6 +579,13 @@ st.sidebar.caption(
     "BRFSS 2021 · 21 features · "
     "Pick a preset to load values, then adjust freely."
 )
+# The selectbox truncates long option labels at the sidebar width, so the
+# chosen archetype is unreadable once selected. Echo it in full underneath.
+# Read defensively for the same reason apply_preset does: the key is absent
+# on the run in which the widget is first created.
+_selected_preset = st.session_state.get("preset_choice")
+if _selected_preset:
+    st.sidebar.caption(f"**Selected:** {_selected_preset}")
 
 st.sidebar.divider()
 
