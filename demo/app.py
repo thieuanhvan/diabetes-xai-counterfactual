@@ -128,20 +128,16 @@ N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
 # The pipeline configs use random_state 42 for the batch experiments; that is a
 # different thing from this widget, which only reseeds DiCE-random for a single
-# interactive query. The default here is chosen so a first-time visitor sees the
-# behaviour the paper describes without changing anything. Seed 42 happens to
-# fall in the 11.9% of seeds that produce no direction violation for the default
-# patient, so opening on it would understate the phenomenon.
-DEFAULT_SEED = 198
-
-# Which of the 200 cohort patients the app opens on. Rank 32 is the profile used
-# in the walkthrough video; any of the 200 can be loaded from the sidebar.
-DEFAULT_COHORT_RANK = 32
+# interactive query. The default is chosen so a first-time visitor sees the
+# behaviour the paper describes without changing anything: on the default
+# profile, 80% of seeds produce a direction violation without constraints, and
+# this is one of them.
+DEFAULT_SEED = 3
 
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.18.0"
+APP_VERSION = "v0.19.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -194,10 +190,12 @@ MODEL_FEATURE_ORDER = [
 ]
 
 # Sidebar input spec. The `default` values are NOT invented: they are the
-# rank-32 patient of the top-200 high-risk cohort, lifted verbatim from
-# demo/models/X_test.parquet, so the app opens on a real member of the
-# population the Action phase actually targets (P(Diabetes=1) = 0.786).
-# The same row is also available from the preset dropdown.
+# rank-200 patient of the top-200 high-risk cohort, lifted verbatim from
+# demo/models/X_test.parquet (P(Diabetes=1) = 0.6948). Rank 200 sits exactly at
+# the cohort boundary, i.e. the LOWEST-risk member of the population the Action
+# phase targets. Opening there is deliberate: if the unconstrained generator
+# still produces clinically indefensible advice for the mildest case in the
+# cohort, the problem is clearly not an artefact of one extreme patient.
 FEATURE_SPEC = {
     # `choices` maps the stored BRFSS code to its codebook meaning. When present,
     # the sidebar renders a dropdown showing "code - meaning" while still storing
@@ -206,7 +204,7 @@ FEATURE_SPEC = {
     "Age": {
         # A bare "6" reads as six years old. The code_prefix makes the dropdown
         # render "Group 6 (45-49 years old)" while still storing the integer 6.
-        "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 6, "step": 1, "type": "int",
+        "label": "Age - BRFSS age group", "min": 1, "max": 13, "default": 8, "step": 1, "type": "int",
         "fmt": "Group {code} ({label})",
         "choices": {
             1: "18-24 years old", 2: "25-29 years old", 3: "30-34 years old",
@@ -221,7 +219,7 @@ FEATURE_SPEC = {
         "choices": {0: "Female", 1: "Male"},
     },
     "Education": {
-        "label": "Education - highest level completed", "min": 1, "max": 6, "default": 5, "step": 1, "type": "int",
+        "label": "Education - highest level completed", "min": 1, "max": 6, "default": 4, "step": 1, "type": "int",
         "choices": {
             1: "Never attended school or only kindergarten",
             2: "Grades 1-8 (elementary)",
@@ -242,7 +240,7 @@ FEATURE_SPEC = {
             11: "$200,000 or more",
         },
     },
-    "BMI": {"label": "BMI - body mass index (kg/m\u00b2)", "min": 12.0, "max": 60.0, "default": 45.0, "step": 0.1, "type": "float"},
+    "BMI": {"label": "BMI - body mass index (kg/m\u00b2)", "min": 12.0, "max": 60.0, "default": 38.0, "step": 0.1, "type": "float"},
     "HighBP": {
         "label": "HighBP - told they have high blood pressure", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
@@ -252,7 +250,7 @@ FEATURE_SPEC = {
         "choices": {0: "No", 1: "Yes"},
     },
     "Stroke": {
-        "label": "Stroke - ever had a stroke (immutable)", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
+        "label": "Stroke - ever had a stroke (immutable)", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "HeartDiseaseorAttack": {
@@ -268,11 +266,11 @@ FEATURE_SPEC = {
         "choices": {0: "No", 1: "Yes"},
     },
     "PhysActivity": {
-        "label": "PhysActivity - physical activity in the past 30 days", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "label": "PhysActivity - physical activity in the past 30 days", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "Fruits": {
-        "label": "Fruits - eats fruit at least once a day", "min": 0, "max": 1, "default": 0, "step": 1, "type": "int",
+        "label": "Fruits - eats fruit at least once a day", "min": 0, "max": 1, "default": 1, "step": 1, "type": "int",
         "choices": {0: "No", 1: "Yes"},
     },
     "Veggies": {
@@ -311,7 +309,7 @@ FEATURE_SPEC = {
     },
     "PhysHlth": {
         "label": "PhysHlth - days physical health was NOT good, in the past 30",
-        "min": 0, "max": 30, "default": 0, "step": 1, "type": "int",
+        "min": 0, "max": 30, "default": 30, "step": 1, "type": "int",
         "fmt": "{label}",
         "choices": {d: ("0 days" if d == 0 else f"{d} day" if d == 1 else f"{d} days")
                     for d in range(0, 31)},
@@ -525,36 +523,6 @@ artifacts_ready = (model is not None) and (X_train is not None)
 # ─────────────────────────────────────────────────────────────────────
 # Preset callback — populates session_state input keys + clears stale CF
 # ─────────────────────────────────────────────────────────────────────
-def load_cohort_patient(rank: int) -> None:
-    """Write the top-200 patient at `rank` into the sidebar inputs.
-
-    Every one of the 200 is a real row from the BRFSS 2021 test set, so this
-    makes the demo browsable across the whole Action-phase cohort instead of
-    resting on a single hand-picked profile.
-    """
-    tbl = load_top200_table()
-    if tbl is None:
-        return
-    r = int(rank)
-    if not (1 <= r <= len(tbl)):
-        return
-    row = tbl.iloc[r - 1]
-    for feature in MODEL_FEATURE_ORDER:
-        spec = FEATURE_SPEC.get(feature)
-        value = float(row[feature])
-        if spec is not None:
-            value = value if spec["type"] == "float" else int(round(value))
-        st.session_state[f"input_{feature}"] = value
-    _h = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
-    st.session_state["input_weight_kg"] = weight_for(st.session_state["input_BMI"], _h)
-    st.session_state["preset_choice"] = "Custom — use current sidebar values"
-    st.session_state.cf_result = None
-
-
-def on_rank_change():
-    load_cohort_patient(st.session_state.get("cohort_rank", DEFAULT_COHORT_RANK))
-
-
 def apply_preset():
     # Read defensively. Streamlit discards the session-state entry for any
     # widget that was not rendered in the previous run, so if a run aborts
@@ -614,33 +582,6 @@ st.sidebar.caption(
     "BRFSS 2021 · 21 features · "
     "Pick a preset to load values, then adjust freely."
 )
-
-if "cohort_rank" not in st.session_state:
-    st.session_state["cohort_rank"] = DEFAULT_COHORT_RANK
-
-_tbl_ranks = load_top200_table()
-if _tbl_ranks is not None:
-    st.sidebar.number_input(
-        "Or load a real patient by cohort rank (1-200)",
-        min_value=1,
-        max_value=len(_tbl_ranks),
-        step=1,
-        key="cohort_rank",
-        on_change=on_rank_change,
-        help=(
-            "The 200 highest-risk patients in the BRFSS 2021 test set, ranked by "
-            "predicted probability. Every one is a real row, not a constructed "
-            "profile. Rank 1 is the highest predicted risk; rank 200 sits at the "
-            "cohort boundary."
-        ),
-    )
-    _rk = int(st.session_state.get("cohort_rank", DEFAULT_COHORT_RANK))
-    _prow = _tbl_ranks.iloc[_rk - 1]
-    st.sidebar.caption(
-        f"Rank {_rk} of {len(_tbl_ranks)} · predicted risk "
-        f"**{float(_prow['P(Diabetes=1)']):.4f}** · step the arrows to browse the "
-        "whole cohort."
-    )
 
 st.sidebar.divider()
 
@@ -879,8 +820,8 @@ st.sidebar.caption(
     "searches; the "
     "model itself is fully deterministic. On the profile this app opens with, "
     "sweeping seeds 0 to 200 with constraints **OFF** produced at least one "
-    "direction violation in **88.1%** of runs (177 of 201), and the violated "
-    "feature was `CholCheck` in 172 of them. The phenomenon is not "
+    "direction violation in **80%** of runs (161 of 201), and the violated "
+    "feature was `CholCheck` in 153 of them. The phenomenon is not "
     "seed-specific; try your own seed."
 )
 
