@@ -134,10 +134,14 @@ DESIRED_CLASS = 0   # 0 = non-diabetic outcome
 # patient, so opening on it would understate the phenomenon.
 DEFAULT_SEED = 198
 
+# Which of the 200 cohort patients the app opens on. Rank 32 is the profile used
+# in the walkthrough video; any of the 200 can be loaded from the sidebar.
+DEFAULT_COHORT_RANK = 32
+
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.17.0"
+APP_VERSION = "v0.18.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
@@ -521,6 +525,36 @@ artifacts_ready = (model is not None) and (X_train is not None)
 # ─────────────────────────────────────────────────────────────────────
 # Preset callback — populates session_state input keys + clears stale CF
 # ─────────────────────────────────────────────────────────────────────
+def load_cohort_patient(rank: int) -> None:
+    """Write the top-200 patient at `rank` into the sidebar inputs.
+
+    Every one of the 200 is a real row from the BRFSS 2021 test set, so this
+    makes the demo browsable across the whole Action-phase cohort instead of
+    resting on a single hand-picked profile.
+    """
+    tbl = load_top200_table()
+    if tbl is None:
+        return
+    r = int(rank)
+    if not (1 <= r <= len(tbl)):
+        return
+    row = tbl.iloc[r - 1]
+    for feature in MODEL_FEATURE_ORDER:
+        spec = FEATURE_SPEC.get(feature)
+        value = float(row[feature])
+        if spec is not None:
+            value = value if spec["type"] == "float" else int(round(value))
+        st.session_state[f"input_{feature}"] = value
+    _h = float(st.session_state.get("input_height_cm", DEFAULT_HEIGHT_CM))
+    st.session_state["input_weight_kg"] = weight_for(st.session_state["input_BMI"], _h)
+    st.session_state["preset_choice"] = "Custom — use current sidebar values"
+    st.session_state.cf_result = None
+
+
+def on_rank_change():
+    load_cohort_patient(st.session_state.get("cohort_rank", DEFAULT_COHORT_RANK))
+
+
 def apply_preset():
     # Read defensively. Streamlit discards the session-state entry for any
     # widget that was not rendered in the previous run, so if a run aborts
@@ -580,6 +614,34 @@ st.sidebar.caption(
     "BRFSS 2021 · 21 features · "
     "Pick a preset to load values, then adjust freely."
 )
+
+if "cohort_rank" not in st.session_state:
+    st.session_state["cohort_rank"] = DEFAULT_COHORT_RANK
+
+_tbl_ranks = load_top200_table()
+if _tbl_ranks is not None:
+    st.sidebar.number_input(
+        "Or load a real patient by cohort rank (1-200)",
+        min_value=1,
+        max_value=len(_tbl_ranks),
+        step=1,
+        key="cohort_rank",
+        on_change=on_rank_change,
+        help=(
+            "The 200 highest-risk patients in the BRFSS 2021 test set, ranked by "
+            "predicted probability. Every one is a real row, not a constructed "
+            "profile. Rank 1 is the highest predicted risk; rank 200 sits at the "
+            "cohort boundary."
+        ),
+    )
+    _rk = int(st.session_state.get("cohort_rank", DEFAULT_COHORT_RANK))
+    _prow = _tbl_ranks.iloc[_rk - 1]
+    st.sidebar.caption(
+        f"Rank {_rk} of {len(_tbl_ranks)} · predicted risk "
+        f"**{float(_prow['P(Diabetes=1)']):.4f}** · step the arrows to browse the "
+        "whole cohort."
+    )
+
 st.sidebar.divider()
 
 patient = {}
