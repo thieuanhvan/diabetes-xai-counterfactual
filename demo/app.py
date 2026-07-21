@@ -126,12 +126,18 @@ DICE_METHODS = ["random", "kdtree", "genetic"]
 DEFAULT_METHOD = "random"
 N_COUNTERFACTUALS = 5
 DESIRED_CLASS = 0   # 0 = non-diabetic outcome
-DEFAULT_SEED = 42   # project convention throughout the repo and the paper
+# The pipeline configs use random_state 42 for the batch experiments; that is a
+# different thing from this widget, which only reseeds DiCE-random for a single
+# interactive query. The default here is chosen so a first-time visitor sees the
+# behaviour the paper describes without changing anything. Seed 42 happens to
+# fall in the 11.9% of seeds that produce no direction violation for the default
+# patient, so opening on it would understate the phenomenon.
+DEFAULT_SEED = 198
 
 # ─────────────────────────────────────────────────────────────────────
 # Build identity
 # ─────────────────────────────────────────────────────────────────────
-APP_VERSION = "v0.16.0"
+APP_VERSION = "v0.17.0"
 PAPER_DOI_URL = "https://doi.org/10.1016/j.ijmedinf.2026.106555"
 REPO_URL = "https://github.com/thieuanhvan/diabetes-xai-counterfactual"
 GLUCO2_URL = "https://gluco2.com"
